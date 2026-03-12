@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from enum import Enum
+from src.db.db_models import MemberRoleEnum
 
 class LoginResultEnum(Enum):
     PENDING = ("pending",)

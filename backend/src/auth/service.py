@@ -4,13 +4,16 @@ from src.db.models import (
     PendingUser,
 )
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, desc, update, insert
-from datetime import date, datetime
+from sqlmodel import select, desc, update, insert, delete
+from datetime import date, datetime, timedelta
 from .utils import generate_passwd_hash, verify_passwd
 from uuid import UUID
 from typing import List
 from .utils import create_access_token, decode_token, verify_passwd
 from .schemas import AccessTokenUserData, LoginResultEnum
+from src.db.db_models import MemberRoleEnum, VerifyUserModel
+
+REFRESH_TOKEN_EXPIRY_MIN = 15
 
 
 class AuthService:
@@ -97,7 +100,7 @@ class AuthService:
         await session.refresh(pending_user)
         return pending_user
 
-    async def login_user(self, password: str, data_dict: dict) -> tuple:
+    def generate_tokens(self, data_dict: dict) -> tuple:
         access_token = create_access_token(
             user_data=data_dict,
         )
@@ -105,19 +108,16 @@ class AuthService:
         refresh_token = create_access_token(
             user_data=data_dict,
             refresh=True,
-            expiry=timedelta(days=REFRESH_TOKEN_EXPIRY_DAYS),
+            expiry=timedelta(minutes=REFRESH_TOKEN_EXPIRY_MIN),
         )
 
-        return (access_token, refresh_token)
+        return access_token, refresh_token
 
-    async def raise_current_user_privilege(
-        self, user_id: UUID, model: UserPrivilegeUpdateModel, session: AsyncSession
-    ):
-        statement = update(User).where(User.uid == user_id).values(model)
-        result = await session.exec(statement)
+    async def raise_user_privilege(self, user: User, session: AsyncSession) -> User:
+        user.role = MemberRoleEnum.VIP.value
         await session.commit()
-
-        return result.rowcount > 0
+        await session.refresh(user)
+        return user
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
     # Creation
@@ -162,6 +162,47 @@ class AuthService:
 
         result = await session.exec(statement)
         return result.all()
+
+    async def is_user_admin(self, user_id: UUID, session: AsyncSession) -> bool:
+        query = select(User.role).where(User.user_id == user_id)
+        res = await session.exec(query)
+        return res.first()[0] == MemberRoleEnum.ADMIN.value
+
+    async def make_admin(self, username: UUID, session: AsyncSession) -> dict:
+        query = (
+            update(User)
+            .where(User.username == username)
+            .values({"role": MemberRoleEnum.ADMIN.value})
+        )
+        res = await session.exec(query)
+        await session.commit()
+        return res.last_updated_params()
+
+    async def promote_pending_to_user(self, username: str, session: AsyncSession):
+        pending_user: PendingUser = await self.get_username_from_user_pending_table(
+            username, session
+        )
+        if pending_user is None:
+            return None
+
+        user: User = User(
+            **pending_user.model_dump(),
+            password_hash=pending_user.password_hash,
+            verified_date=date.today(),
+            last_login_date=None,
+            role=MemberRoleEnum.USER.value,
+        )
+
+        stmt = delete(PendingUser).where(PendingUser.user_id == pending_user.user_id)
+        res = await session.exec(stmt)
+
+        if res.rowcount == 0:
+            raise Exception("Failed to delete user")
+
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
 
     # TODO: Create update user password method
     # async def update_user(self, user_uid:str, update_data:UserUpdateModel, session:AsyncSession):
