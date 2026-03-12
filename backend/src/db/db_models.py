@@ -41,10 +41,13 @@ class UserDataModel(UserBaseModel):
 
 
 class LoginUserModel(SQLModel):
-    username: str = Field(max_length=32, nullable=False)
+    username: str = Field(min_length=2, max_length=32, nullable=False)
     password: str = Field(nullable=False)
 
-
+class VerifyUserModel(SQLModel):
+    verified_date: date
+    last_login_date: date
+    role: MemberRoleEnum
 
 
 """##################################

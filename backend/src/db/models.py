@@ -112,11 +112,12 @@ class User(UserBaseModel, table=True):
     join_date: date = Field(
         sa_column=Column(postgres.DATE, index=False, nullable=False)
     )
+    request: Optional[str] = Field(nullable=True)
     verified_date: date = Field(
         sa_column=Column(postgres.DATE, default=date.today, index=False, nullable=False)
     )
     last_login_date: date = Field(
-        sa_column=Column(postgres.DATE, default=date.today, index=False, nullable=False)
+        sa_column=Column(postgres.DATE, default=date.today, index=False, nullable=True)
     )
     role: MemberRoleEnum = Field(
         default=MemberRoleEnum.USER,
@@ -128,7 +129,7 @@ class User(UserBaseModel, table=True):
     )
 
     def __str__(self):
-        return f"<User: {self.id}"
+        return f"<User: `{self.user_id}` is `{self.nickname}` and has the role `{self.role}`"
 
 
 """##################################
