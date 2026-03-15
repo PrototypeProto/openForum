@@ -1,0 +1,14 @@
+.bg {
+    width: auto;
+    background-image: url(/assets/aa.jpg);
+    background-repeat: no-repeat;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.offset {
+    margin-top: min(75px, 5vh);
+}

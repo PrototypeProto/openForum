@@ -1,10 +1,12 @@
 from typing import Optional, Union, Annotated
-'''
+
+"""
     Optional[type(s)]
     Union() or (type | None)
     Annotated[type, "annotation textr"]
-'''
+"""
 from fastapi import FastAPI, Header
+from fastapi.middleware.cors import CORSMiddleware
 from src.auth.auth_routes import auth_router
 from src.root_routes import root_router
 from src.config import Settings
@@ -12,16 +14,18 @@ from src.db.main import init_db
 
 from contextlib import asynccontextmanager
 
+
 @asynccontextmanager
 async def life_span(app: FastAPI):
     print("Server is starting...")
-    
+
     # If we want to autogenerate the DB based on our SQLModels
     # Using Alembic instead to manage DB updates
     # await init_db()
-    
+
     yield
     print("Server has been stopped...")
+
 
 # api_version = "v1"
 # s = Settings()
@@ -31,10 +35,17 @@ async def life_span(app: FastAPI):
 app = FastAPI(
     title="Portfolio",
     description="My portfolio & community for friends",
-    lifespan=life_span
+    lifespan=life_span,
 )
 
 # app.include_router(router=router, prefix=f"/{api_version}/user")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(router=auth_router, prefix="/auth")
 app.include_router(router=root_router, prefix="")
 # app.include_router(router=product_router, prefix="/products")

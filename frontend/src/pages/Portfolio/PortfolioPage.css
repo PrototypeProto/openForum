@@ -1,0 +1,33 @@
+/* ============================================================
+   PortfolioPage.css
+   ============================================================ */
+
+.portfolio-page {
+  padding: 3rem 4rem; /* space from page border */
+  background-color: rgb(91, 145, 170);
+}
+
+.portfolio-heading {
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  margin-top: 0rem;
+  text-align: center;
+}
+
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 cards per row */
+  gap: 2rem;                              /* space between cards */
+}
+
+/* Responsive: 1 column on smaller screens */
+@media (max-width: 768px) {
+  .portfolio-page {
+    padding: 2rem 1.5rem;
+  }
+
+  .portfolio-grid {
+    grid-template-columns: 1fr;
+  }
+}

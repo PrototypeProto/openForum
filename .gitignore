@@ -1,3 +1,14 @@
+# TMP
+# tmp Files
+alembic_tmp.py
+old_db.py
+alembic_bk/
+.dockerignore
+
+
+# docker
+compose.yaml
+
 docker/
 redis/
 
@@ -8,10 +19,6 @@ __pycache__/
 settings.json
 
 
-# tmp Files
-alembic_tmp.py
-old_db.py
-alembic_bk/
 
 calendar/
 member/
@@ -22,15 +29,47 @@ products/
 
 # ignoring frontend for now
 #Frontend
-frontend/
+# frontend/
 node_modules/
+public/
+assets/*
 
 .DS_Store
 .env
+.env.local
+.env.production
+.env.dev
 
 /.react-router/
 /build/
 
 
-# docker
-compose.yaml
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.png
+*.jpg
+*.mp4
+
