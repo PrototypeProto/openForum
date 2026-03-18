@@ -29,8 +29,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   
+  const navigate = useNavigate();
   const logout = () => {
-    const navigate = useNavigate();
     setAuthData(null);
     localStorage.removeItem("user");
     navigate("/logged-out");

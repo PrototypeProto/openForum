@@ -1,30 +1,25 @@
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
 
-interface NavbarProps {
-  username: string | null | undefined;
-  // onLogin: () => void;
-  // onLogout: () => void;
-}
-
-export function Navbar({ username }: NavbarProps) {
+export function Navbar() {
   const navigate = useNavigate()
-  const {logout} = useAuthContext();
+  const {authData, logout} = useAuthContext();
 
   return (
     <nav className="navbar">
       <div className="navbar-brand">Jo.sh</div>
 
       <div className="navbar-links">
+        <a href="/">Home</a>
         <a href="/forum">Forum</a>
         <a href="/media">Media</a>
         <a href="/file-share">Temporary File Storage</a>
       </div>
 
       <div className="navbar-auth">
-        {username ? (
+        {authData?.username ? (
           <>
-            <span className="navbar-username">{username}</span>
+            <span className="navbar-username">{authData.username}</span>
             <button className="btn-secondary" onClick={logout}>Log out</button>
           </>
         ) : (

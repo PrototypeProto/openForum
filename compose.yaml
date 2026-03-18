@@ -1,0 +1,36 @@
+services: 
+
+  backend:
+    container_name: portfolio-db
+    image: postgres:18.1
+    shm_size: 1024mb
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - pgsql_portfolio:/var/lib/postgresql
+    environment:
+      POSTGRES_PASSWORD: party
+  
+  redis-db:
+    container_name: redis-db
+    image: redis:latest
+    restart: always
+    ports:
+      - 6379:6379
+
+  frontend:
+    container_name: portfolio-fe
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend:/frontend
+      - /frontend/node_modules
+    command: npm run dev -- --host
+    ports:
+      - 5173:5173
+    
+volumes:
+  pgsql_portfolio:
+

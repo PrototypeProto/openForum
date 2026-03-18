@@ -1,16 +1,3 @@
-# TMP
-# tmp Files
-alembic_tmp.py
-old_db.py
-alembic_bk/
-.dockerignore
-
-
-# docker
-compose.yaml
-
-docker/
-redis/
 
 *.pyc
 .env
@@ -27,18 +14,14 @@ practice/
 products/
 
 
-# ignoring frontend for now
 #Frontend
-# frontend/
 node_modules/
-public/
-assets/*
+frontend/public/*
 
-.DS_Store
+# environment files
 .env
-.env.local
-.env.production
-.env.dev
+.env.*
+!.env.example
 
 /.react-router/
 /build/
@@ -53,13 +36,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# dependencies
 node_modules
+# build output
 dist
 dist-ssr
+.vite/
+
+# misc
 *.local
 
 # Editor directories and files
-.vscode/*
+.vscode
 !.vscode/extensions.json
 .idea
 .DS_Store
@@ -69,9 +57,26 @@ dist-ssr
 *.sln
 *.sw?
 
+# public files
+public/*
+assets/*
 *.png
 *.jpg
 *.mp4
 
-frontend/.vite/deps/_metadata.json
-frontend/.vite/deps/package.json
+# cache
+.cache/
+.tmp/
+temp/
+
+# TS
+*.tsbuildinfo
+
+# packamge managers
+.pnpm-store/
+.npm/
+
+
+frontend/.vite/*
+frontend/.vite/
+backend/compose.yaml
