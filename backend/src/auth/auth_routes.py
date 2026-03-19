@@ -23,7 +23,7 @@ from src.db.redis import add_jti_to_blocklist
 from src.db.db_models import UserDataModel, RegisterUserModel, LoginUserModel, MemberRoleEnum
 from .schemas import AccessTokenUserData, LoginResultEnum
 from uuid import UUID
-from src.db.models import User
+from src.db.models import User, PendingUser
 
 """
     A custom route to access users
@@ -43,6 +43,12 @@ SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 async def create_user(
     user_data: RegisterUserModel, session: SessionDependency
 ) -> UserDataModel:
+    if user_data.email == "":
+        user_data.email = None
+    if user_data.nickname == "":
+        user_data.nickname = None
+    if user_data.request == "":
+        user_data.request = None
     if await auth_service.username_exists(user_data.username, session) != LoginResultEnum.DNE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -104,6 +110,9 @@ async def get_all_users(session: SessionDependency):
     users = await auth_service.get_all_users(session)
     return users
 
+@auth_router.get("/unregistered/users", response_model=List[PendingUser])
+async def get_unregistered_users(session: SessionDependency):
+    return await auth_service.get_unverified_users(session)
 
 @auth_router.get("/refresh_token")
 async def get_new_access_token(token_details: dict = Depends(RefreshTokenBearer())):

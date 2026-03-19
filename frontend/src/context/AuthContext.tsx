@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthData(null);
     localStorage.removeItem("user");
     navigate("/logged-out");
+    // TODO: add log out logic API req
   };
 
   const getUsernameOrGuest = () => {

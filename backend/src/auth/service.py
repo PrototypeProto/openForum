@@ -12,6 +12,7 @@ from typing import List
 from .utils import create_access_token, decode_token, verify_passwd
 from .schemas import AccessTokenUserData, LoginResultEnum
 from src.db.db_models import MemberRoleEnum, VerifyUserModel
+from src.db.models import PendingUser
 
 REFRESH_TOKEN_EXPIRY_MIN = 15
 
@@ -71,6 +72,11 @@ class AuthService:
 
     async def get_all_users(self, session: AsyncSession) -> List[User]:
         query = select(User)
+        res = await session.exec(query)
+        return res.all()
+
+    async def get_unverified_users(self, session: AsyncSession) -> List[PendingUser]:
+        query = select(PendingUser)
         res = await session.exec(query)
         return res.all()
 

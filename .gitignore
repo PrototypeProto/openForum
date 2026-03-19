@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+# docker
+compose.yaml
+docker/
+redis/
+=======
+>>>>>>> stable
 
 *.pyc
 .env

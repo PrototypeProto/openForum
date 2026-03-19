@@ -1,30 +1,41 @@
-import type { LoginResponse } from "../types/authType";
-import { login } from "../services/auth/authService";
-import type { UserLogin } from "../types/User";
+import type { APIResponse, LoginResponse, SignupResponse, UserLogin, UserSignup } from "../types/authType";
+import { login, signup } from "../services/auth/authService";
 import { useAuthContext } from "../context/AuthContext";
 
 export function useAuth() {
   const { setAuthData, setTokens } = useAuthContext();
 
-  const handleLogin = async ({ username, password }: UserLogin) => {
+  const handleLogin = async ({ username, password }: UserLogin): Promise<boolean> => {
     try {
-      const data: LoginResponse = await login({ username, password });
+      const response: APIResponse<LoginResponse> = await login({ username, password });
       // on successful login, response has a user field
-      if (data && data.user) {
-        setTokens(data.access_token, data.refresh_token);
-        setAuthData(data.user);
-        localStorage.setItem("user", JSON.stringify(data.user));
+      if (response.ok && response.data) {
+        setTokens(response.data?.access_token, response.data.refresh_token);
+        setAuthData(response.data.user);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+        localStorage.removeItem("temp_user");
         return true;
-      } else {
-        setAuthData(null);
-        sessionStorage.removeItem("user");
-        console.log(data);
       }
+
+      console.log(response);
       return false;
     } catch {
       return false;
     }
   };
 
-  return { handleLogin };
+  const handleSignup = async (userData : UserSignup): Promise<boolean> => {
+    try {
+      const response: APIResponse<SignupResponse> = await signup(userData);
+      if (response.ok && response.data) {
+        localStorage.setItem("temp_user", JSON.stringify(response.data));
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  return { handleLogin, handleSignup };
 }
