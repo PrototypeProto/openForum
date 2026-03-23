@@ -19,7 +19,8 @@ from .dependencies import (
     access_token_bearer,
     get_current_user_by_username,
 )
-from src.db.redis import add_jti_to_blocklist
+from src.db.tokens_redis import add_jti_to_blocklist
+from src.db.roles_redis import *
 from src.db.db_models import UserDataModel, RegisterUserModel, LoginUserModel, MemberRoleEnum
 from .schemas import AccessTokenUserData, LoginResultEnum
 from uuid import UUID
@@ -90,6 +91,7 @@ async def login_user(login_data: LoginUserModel, session: SessionDependency):
     if verify_passwd(login_data.password, user.password_hash):
         access_token, refresh_token = auth_service.generate_tokens(data_dict)
         if access_token is not None and refresh_token is not None:
+            # NOTE: Maybe do a redis check here
             return JSONResponse(
                 content={
                     "message": "login successful",
@@ -102,19 +104,6 @@ async def login_user(login_data: LoginUserModel, session: SessionDependency):
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN, detail="Invalid username and/or password"
     )
-
-
-@auth_router.get(
-    "/all_users",
-    response_model=List[UserDataModel],
-)
-async def get_all_users(session: SessionDependency):
-    users = await auth_service.get_all_users(session)
-    return users
-
-@auth_router.get("/unregistered/users", response_model=List[PendingUser])
-async def get_unregistered_users(session: SessionDependency):
-    return await auth_service.get_unverified_users(session)
 
 @auth_router.get("/refresh_token")
 async def get_new_access_token(token_details: dict = Depends(RefreshTokenBearer())):
@@ -151,47 +140,5 @@ async def revoke_token(token_details: dict = access_token_bearer):
         content={"message": "Logged out successfully"}, status_code=status.HTTP_200_OK
     )
 
-@auth_router.patch("/{username}/promotion/vip")
-async def promote_to_vip(username: str, session: SessionDependency, token_details: dict = access_token_bearer):
-    # check if current user is admin
-    if token_details is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid permission to access requested resources")
-    
-    admin_id = token_details.get('user').get('user_id')
-    if admin_id is None or not auth_service.is_user_admin(admin_id, session):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid permission to access requested resources")
-
-    # check if user_id is valid
-    user = await auth_service.get_username_from_user_table(username, session)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="user does not exist")
-        
-    # promote user else error
-    res = await auth_service.raise_user_privilege(user, session)
-    if res is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Failed to update perms")
-    if res.role != MemberRoleEnum.VIP.value:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Failed to update perms")
-    
-@auth_router.post("/admin")
-async def make_admin(session: SessionDependency, token_details: dict = access_token_bearer):
-    if token_details is None or token_details.get('user') is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid perms1")
-
-    user = await auth_service.get_username_from_user_table(token_details.get('user').get('username'), session)
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid perms2")
-
-    res = await auth_service.make_admin(user.username, session)
-    print(res)
-    return res
-
-@auth_router.post("/{username}/promotion/user", response_model=User)
-async def authorize_pending_user(username: str, session: SessionDependency):
-    new_user = await auth_service.promote_pending_to_user(username, session)
-    if new_user is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Failed to update perms")
-    print(new_user)
-    return new_user
 
     
