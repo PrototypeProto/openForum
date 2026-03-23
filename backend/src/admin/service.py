@@ -6,11 +6,8 @@ from src.db.models import (
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, desc, update, insert, delete
 from datetime import date, datetime, timedelta
-from .utils import generate_passwd_hash, verify_passwd
 from uuid import UUID
 from typing import List
-from .utils import create_access_token, decode_token, verify_passwd
-from .schemas import AccessTokenUserData, LoginResultEnum
 from src.db.db_models import MemberRoleEnum, VerifyUserModel
 from src.db.models import PendingUser
 from src.db.roles_redis import set_user_role, get_user_role
@@ -36,8 +33,8 @@ class AdminService:
         res = await session.exec(query)
         return res.all()
 
-    async def get_unverified_users(self, session: AsyncSession) -> List[PendingUser]:
-        query = select(PendingUser)
+    async def get_pending_users(self, session: AsyncSession) -> List[PendingUser]:
+        query = select(PendingUser.user_id, PendingUser.username)
         res = await session.exec(query)
         return res.all()
 
@@ -56,8 +53,9 @@ class AdminService:
     # Existence Validation - Log in / Sign up
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    async def raise_user_privilege(self, user: User, session: AsyncSession) -> User:
-        user.role = MemberRoleEnum.VIP.value
+    async def raise_user_privilege(self, username: str, role: MemberRoleEnum, session: AsyncSession) -> User:
+        user: User = await auth_service.get_username_from_user_table(username, session)
+        user.role = role.value
         await session.commit()
         await session.refresh(user)
         return user
@@ -66,12 +64,12 @@ class AdminService:
         '''
         Checks redis for a User w/ `username`, else repopulates caches and returns answer from DB
         '''
-        username = await get_user(username)
-        if username:
+        exists = await get_user(username)
+        if exists:
             return True
 
-        username = await auth_service.get_username_from_user_table(username, session)
-        if username is None:
+        user = await auth_service.get_username_from_user_table(username, session)
+        if user is None:
             return False
         
         await add_registered_user(username)
@@ -110,7 +108,7 @@ class AdminService:
         return res.last_updated_params()
 
     async def promote_pending_to_user(self, username: str, session: AsyncSession):
-        pending_user: PendingUser = await self.get_username_from_user_pending_table(
+        pending_user: PendingUser = await auth_service.get_username_from_user_pending_table(
             username, session
         )
         if pending_user is None:

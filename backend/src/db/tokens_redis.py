@@ -13,14 +13,14 @@ redis_token_blocklist = redis.Redis(
 
 
 async def add_jti_to_blocklist(jti:str) -> None:
-    redis_token_blocklist.set(
+    await redis_token_blocklist.set(
         name=jti,
         value="",
         ex=JTI_EXPIRY
     )
 
 async def token_in_blocklist(jti:str) -> bool:
-    jti_token = redis_token_blocklist.get(jti)
+    jti_token = await redis_token_blocklist.get(jti)
 
     return jti_token is not None
     

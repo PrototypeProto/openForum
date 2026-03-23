@@ -9,6 +9,7 @@ from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 from src.auth.auth_routes import auth_router
 from src.root_routes import root_router
+from src.admin.admin_routes import admin_router
 from src.config import Settings
 from src.db.main import init_db
 
@@ -46,7 +47,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(router=auth_router, prefix="/auth")
 app.include_router(router=root_router, prefix="")
+app.include_router(router=auth_router, prefix="/auth")
+app.include_router(router=admin_router, prefix="/admin")
 # app.include_router(router=product_router, prefix="/products")
 # app.include_router(router=member_router, prefix="/member")
