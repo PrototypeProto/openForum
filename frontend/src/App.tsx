@@ -11,21 +11,45 @@ import MediaPage from "./pages/Media/MediaPage";
 import FileSharePage from "./pages/FileShare/FileSharePage";
 import AboutPage from "./pages/About/AboutPage";
 import AccountVerificationPage from "./pages/Login-Signup/AccountVerificationPage";
+import { GuestRoute } from "./guards/GuestRoute";
+import { ProtectedRoute } from "./guards/ProtectedRoute";
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/about" element={<AboutPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/profile" element={<ProfilePage />} />
+      <Route
+        path="/login"
+        element={
+          <GuestRoute>
+            <LoginPage />
+          </GuestRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      {/*<Route path="/admin" element={
+    <AdminRoute><AdminDashboard /></AdminRoute>
+  }/>*/}
+
+      {/* <Route path="/profile" element={<ProfilePage />} /> */}
       <Route path="/error" element={<ErrorPage />} />
       <Route path="/logged-out" element={<LogoutPage />} />
       <Route path="/portfolio" element={<PortfolioPage />} />
       <Route path="/forum" element={<ForumPage />} />
       <Route path="/media" element={<MediaPage />} />
       <Route path="/file-share" element={<FileSharePage />} />
-      <Route path="/account-pending-approval" element={<AccountVerificationPage />} />
+      <Route
+        path="/account-pending-approval"
+        element={<AccountVerificationPage />}
+      />
     </Routes>
   );
 }

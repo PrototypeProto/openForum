@@ -1,0 +1,203 @@
+/* ── variables ──────────────────────────────────────────── */
+:root {
+  --bg:          #0e0e0e;
+  --surface:     #151515;
+  --border:      #2a2a2a;
+  --border-focus:#555;
+  --text:        #f0ede8;
+  --text-muted:  #666;
+  --text-subtle: #444;
+  --accent:      #c9b99a;
+  --accent-dim:  #8a7d6a;
+  --err:         #c0614a;
+  --radius:      2px;
+  --transition:  180ms ease;
+}
+
+/* ── reset ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── page ───────────────────────────────────────────────── */
+.auth-page {
+  min-height: 100vh;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse 60% 50% at 70% 20%, #1e1a14 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 20% 80%, #141414 0%, transparent 55%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  font-family: 'Courier New', Courier, monospace;
+  padding: 40px 20px;
+}
+
+/* ── card shared ────────────────────────────────────────── */
+.login-card,
+.signup-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 48px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: card-in 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── heading ────────────────────────────────────────────── */
+.login-card h1,
+.signup-card h1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 2rem;
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+/* ── inputs ─────────────────────────────────────────────── */
+.login-card input,
+.signup-card input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+  color: var(--text);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.8rem;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  outline: none;
+  transition: border-color var(--transition);
+  border-radius: 0;
+}
+
+.login-card input::placeholder,
+.signup-card input::placeholder {
+  color: var(--text-subtle);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.login-card input:focus,
+.signup-card input:focus {
+  border-bottom-color: var(--accent);
+}
+
+/* ── submit button ──────────────────────────────────────── */
+.login-card button[onClick],
+.signup-card button[onClick],
+.login-card .btn-submit,
+.signup-card .btn-submit {
+  margin-top: 10px;
+  width: 100%;
+  background: var(--accent);
+  border: none;
+  padding: 13px;
+  color: #0e0e0e;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background var(--transition), opacity var(--transition);
+}
+
+.login-card button:hover,
+.signup-card button:hover {
+  background: var(--text);
+}
+
+/* target submit buttons specifically by being first button in card */
+.login-card > button,
+.signup-card > button {
+  margin-top: 10px;
+  width: 100%;
+  background: var(--accent);
+  border: none;
+  padding: 13px;
+  color: #0e0e0e;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--radius);
+  transition: background var(--transition);
+}
+
+.login-card > button:hover,
+.signup-card > button:hover {
+  background: var(--text);
+}
+
+/* ── error span ─────────────────────────────────────────── */
+.login-card span,
+.signup-card span {
+  font-size: 0.7rem;
+  color: var(--err);
+  letter-spacing: 0.03em;
+  padding-top: 2px;
+}
+
+/* ── toggle link button ─────────────────────────────────── */
+.auth-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-muted);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--text-subtle);
+  text-underline-offset: 3px;
+  transition: color var(--transition), text-decoration-color var(--transition);
+}
+
+.auth-toggle:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent-dim);
+}
+
+/* ── divider line between card and toggle ───────────────── */
+.auth-page > button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-muted);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--text-subtle);
+  text-underline-offset: 3px;
+  transition: color var(--transition), text-decoration-color var(--transition);
+}
+
+.auth-page > button:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent-dim);
+}

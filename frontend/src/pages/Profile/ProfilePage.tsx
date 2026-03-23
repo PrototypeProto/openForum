@@ -1,5 +1,11 @@
 import { Navbar } from "../../components/Navbar";
+import { lazy, Suspense } from "react";
 import { useAuthContext } from "../../context/AuthContext";
+
+const AdminDashboard = lazy(
+  () => import("../../components/admin/AdminDashboard"),
+);
+const UserDashboard = lazy(() => import("../../components/UserDashboard"));
 
 export default function ProfilePage() {
   const { authData, getUsernameOrGuest } = useAuthContext();
@@ -15,7 +21,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <Navbar username={authData?.username} />
+      <Navbar />
       <div className="profile-page">
         <h1>Successfully logged in!</h1>
         <span>Welcome {authData.username}</span>
@@ -29,6 +35,9 @@ export default function ProfilePage() {
         <br />
         <span>Your current privileges are {authData.role}</span>
         <br />
+        <Suspense fallback={<div>Loading...</div>}>
+          {authData.role === "admin" ? <AdminDashboard /> : <UserDashboard />}
+        </Suspense>
       </div>
     </>
   );

@@ -28,9 +28,9 @@ export interface LoginResponse {
 export interface UserSignup {
   username: string
   password: string
-  email: string
-  nickname: string
-  request: string
+  email: string | null
+  nickname: string | null
+  request: string | null
 }
 
 export interface SignupResponse {

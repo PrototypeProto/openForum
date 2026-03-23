@@ -6,12 +6,12 @@ export default function SignupCard() {
   const navigate = useNavigate();
   const {handleSignup} = useAuth();
 
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setconfirmPassword] = useState("");
-  const [email, setEmail] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [request, setRequest] = useState("");
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [confirmPassword, setconfirmPassword] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [nickname, setNickname] = useState<string>("");
+  const [request, setRequest] = useState<string>("");
 
   const [err, setErr] = useState<boolean>(false);
 

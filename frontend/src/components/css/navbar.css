@@ -1,0 +1,71 @@
+/* --- Navbar ------------------------------------------------ */
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  height: 64px;
+  /* border-bottom: 1px solid #e5e7eb; */
+  /* TODO: Set your brand background/color */
+  background: #a71111;
+}
+
+.navbar-brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  /* TODO: Style your logo/wordmark */
+}
+
+.navbar-links {
+  display: flex;
+  gap: 1.5rem;
+  /* TODO: Style nav links */
+}
+
+.navbar-auth {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.navbar-username {
+  font-size: 0.9rem;
+  color: #10e044;
+  outline: #111;
+  outline-width: 2px;
+}
+
+/* --- Buttons ---------------------------------------------- */
+
+.btn-primary {
+  /* TODO: Match your brand colors */
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: none;
+  background: #111;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: transparent;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.btn-profile {
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: none;
+  /* color: #fff; */
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* --- Hero -------------------------------------------------- */

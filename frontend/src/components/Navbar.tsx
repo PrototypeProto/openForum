@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuthContext } from "../context/AuthContext";
+import "./css/navbar.css"
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ export function Navbar() {
       <div className="navbar-auth">
         {authData?.username ? (
           <>
-            <span className="navbar-username">{authData.username}</span>
+            <button className="btn-profile" onClick={() => {navigate("/profile")}}>{authData.username}</button>
             <button className="btn-secondary" onClick={logout}>
               Log out
             </button>
