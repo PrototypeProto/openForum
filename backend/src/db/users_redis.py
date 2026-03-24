@@ -21,8 +21,8 @@ async def add_registered_user(username: str, is_member: bool = True) -> None:
     )
 
 async def get_user(username: str) -> MemberRoleEnum | None:
-    role = await redis_user.get(username)
-    return role
+    role:bytes = await redis_user.get(username)
+    return None if role is None else role.decode()
 
 async def remove_user(username: str) -> None:
     await redis_user.delete(username)
