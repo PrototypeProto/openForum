@@ -14,14 +14,14 @@ redis_user_role = redis.Redis(
 
 
 async def set_user_role(username: str, role: MemberRoleEnum) -> None:
-    redis_user_role.set(
+    await redis_user_role.set(
         name=username,
         value=role,
-        ex=ROLE_EXPIRY if role is MemberRoleEnum.USER else None
+        ex=int(ROLE_EXPIRY.total_seconds()) if role is MemberRoleEnum.USER else None
     )
 
 async def get_user_role(username: str) -> MemberRoleEnum | None:
-    role = redis_user_role.get(username)
-    return role
+    role: bytes = await redis_user_role.get(username)
+    return None if role is None else MemberRoleEnum(role.decode())
 
     
