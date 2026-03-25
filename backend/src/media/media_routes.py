@@ -1,5 +1,5 @@
 from typing import Optional, Union, Annotated, List
-from fastapi import FastAPI, Header, APIRouter, Depends, UploadFile, File, Query
+from fastapi import FastAPI, Header, APIRouter, Depends, UploadFile, File, Query, Cookie
 from fastapi import status
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.exceptions import HTTPException
@@ -44,17 +44,28 @@ MEDIA_TYPES = {
 ALLOWED_MIME_TYPES = set(MEDIA_TYPES.values())
 ALLOWED_EXTENSIONS = set(MEDIA_TYPES.keys())
 
+@media_router.get("/pages", response_model=int)
+async def get_page_count(
+    session: SessionDependency,
+    token_details: dict = access_token_bearer):
+    if not await auth_service.is_verified_user(token_details, session):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid perms"
+        )
+    
+    return 2
+
 @media_router.get("/list")
 async def list_media_page(
     session: SessionDependency,
-    page: int = Query(default=0, ge=0),
+    page: int = Query(default=1, ge=1),
     token_details: dict = access_token_bearer,
 ):
     if not await auth_service.is_verified_user(token_details, session):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid perms"
         )
-    return await media_service.list_accessible_media(page, MEDIA_LIMIT)
+    return await media_service.list_accessible_media(page-1, MEDIA_LIMIT)
 
 
 @media_router.get("/{filename}")
