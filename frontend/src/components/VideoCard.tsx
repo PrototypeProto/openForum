@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useAuthContext } from "../context/AuthContext";
 import "./css/VideoCard.css";
 import { getMediaFile } from "../services/media/mediaService";
 
@@ -8,7 +7,6 @@ interface VideoCardProps {
 }
 
 export default function VideoCard({ filename }: VideoCardProps) {
-  const { accessToken } = useAuthContext();
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +20,7 @@ export default function VideoCard({ filename }: VideoCardProps) {
   const handleLoad = async () => {
     if (videoUrl) return; // already loaded
     setLoading(true);
-    const url = await getMediaFile(filename, accessToken ?? "");
+    const url = await getMediaFile(filename);
     setVideoUrl(url);
     setLoading(false);
   };
@@ -42,7 +40,7 @@ export default function VideoCard({ filename }: VideoCardProps) {
         </div>
       )}
       <div className="video-card-footer">
-        <span className="video-filename">{filename}</span>
+        <span className="video-filename">File: {filename}</span>
       </div>
     </div>
   );
