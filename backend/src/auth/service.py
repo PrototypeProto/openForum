@@ -13,8 +13,9 @@ from .utils import create_access_token, decode_token, verify_passwd
 from .schemas import AccessTokenUserData, LoginResultEnum
 from src.db.db_models import MemberRoleEnum, VerifyUserModel
 from src.db.models import PendingUser
+from src.db.users_redis import add_registered_user, get_user
 
-REFRESH_TOKEN_EXPIRY_MIN = 15
+REFRESH_TOKEN_EXPIRY_MIN = 60 * 24 # 1 day
 
 
 class AuthService:
@@ -209,6 +210,26 @@ class AuthService:
         await session.commit()
         await session.refresh(user)
         return user
+
+    async def is_verified_user(self, token_details: dict, session: AsyncSession) -> bool:
+        '''
+        Checks redis for a User w/ `username`, else repopulates caches and returns answer from DB
+        Useful as a user exists method
+        '''
+        if token_details is None or token_details.get('user') is None or token_details.get('user').get('username') is None:
+            return False
+        
+        username = token_details.get('user').get('username')
+        exists = await get_user(username)
+        if exists:
+            return True
+
+        user = await self.get_username_from_user_table(username, session)
+        if user is None:
+            return False
+        
+        await add_registered_user(username)
+        return True
 
     # TODO: Create update user password method
     # async def update_user(self, user_uid:str, update_data:UserUpdateModel, session:AsyncSession):

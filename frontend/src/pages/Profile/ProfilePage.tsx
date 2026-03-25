@@ -23,17 +23,16 @@ export default function ProfilePage() {
     <>
       <Navbar />
       <div className="profile-page">
-        <h1>Successfully logged in!</h1>
-        <span>Welcome {authData.username}</span>
+        <span>Username: {authData.username}</span>
         <br />
-        <span>Your user id is: {authData.user_id}</span>
+        <span>User id: {authData.user_id}</span>
         <br />
         <span>
-          You also go by:{" "}
+          Nickname:{" "}
           {authData?.nickname ?? "No nickname associated to this account"}
         </span>
         <br />
-        <span>Your current privileges are {authData.role}</span>
+        <span>Member Role: {authData.role}</span>
         <br />
         <Suspense fallback={<div>Loading...</div>}>
           {authData.role === "admin" ? <AdminDashboard /> : <UserDashboard />}

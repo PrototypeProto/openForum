@@ -4,17 +4,18 @@ const BASE_HEADERS = {
   "Content-Type": "application/json",
 };
 
+const BASE_OPTIONS = {
+  credentials: "include" as RequestCredentials,
+  headers: BASE_HEADERS,
+};
+
 export async function postJSON<T>(
   url: string,
   body: unknown,
-  token?: string,
 ): Promise<APIResponse<T>> {
   const res = await fetch(url, {
     method: "POST",
-    headers: {
-      ...BASE_HEADERS,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    ...BASE_OPTIONS,
     body: JSON.stringify(body),
   });
 
@@ -24,22 +25,44 @@ export async function postJSON<T>(
     data: res.ok ? (data as T) : null,
     ok: res.ok,
     statusCode: res.status,
-    error: res.ok ? null : (data.detail?.[0]?.msg ?? data.detail ?? "Failed to retrieve error message"),
+    error: res.ok
+      ? null
+      : (data.detail?.[0]?.msg ??
+        data.detail ??
+        "Failed to retrieve error message"),
   };
 }
 
-export async function getJSON<T>(url: string, token?: string): Promise<T> {
-  const res = await fetch(url, {
+export async function getJSON<T>(
+  url: string,
+  params?: Record<string, unknown>,
+): Promise<APIResponse<T>> {
+  const urlWithParams = params
+    ? `${url}?${new URLSearchParams(params as Record<string, string>).toString()}`
+    : url;
+
+  const res = await fetch(urlWithParams, {
     method: "GET",
-    headers: {
-      ...BASE_HEADERS,
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    ...BASE_OPTIONS,
   });
 
   const data = await res.json().catch(() => ({}));
 
-  if (!res.ok) throw new Error(data.detail?.[0]?.msg ?? data.detail ?? "Failed to retrieve error message");
+  return {
+    data: res.ok ? (data as T) : null,
+    ok: res.ok,
+    statusCode: res.status,
+    error: res.ok
+      ? null
+      : (data.detail?.[0]?.msg ??
+        data.detail ??
+        "Failed to retrieve error message"),
+  };
+}
 
-  return data as T;
+export async function getRaw(url: string): Promise<Response> {
+  return fetch(url, {
+    method: "GET",
+    ...BASE_OPTIONS,
+  });
 }

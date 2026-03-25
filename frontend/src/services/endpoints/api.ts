@@ -1,6 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
 
 const AUTH_URL = `${BASE_URL}/auth`
+const MEDIA_URL = `${BASE_URL}/media`
 
 export const API = {
   auth: {
@@ -15,6 +16,12 @@ export const API = {
     all_users: `${AUTH_URL}/all_users`,
     me: `${AUTH_URL}/me`,
 
-  }
+  },
+  media: {
+    list: `${MEDIA_URL}/list`,
+    getFile: (filename: string) => `${MEDIA_URL}/${filename}`,
+    uploadFile: `${MEDIA_URL}/file}`,
+    deleteFile: (filename: string) => `${MEDIA_URL}/file/${filename}}`,
+  },
 }
 

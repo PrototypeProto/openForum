@@ -1,0 +1,146 @@
+/* ── variables ──────────────────────────────────────────── */
+/* inherits from auth.css if on same page, otherwise self-contained */
+:root {
+  --bg:            #0e0e0e;
+  --surface:       #151515;
+  --surface-raised:#1a1a1a;
+  --border:        #2a2a2a;
+  --border-focus:  #444;
+  --text:          #f0ede8;
+  --text-muted:    #777;
+  --text-subtle:   #3a3a3a;
+  --accent:        #c9b99a;
+  --accent-dim:    #8a7d6a;
+  --transition:    160ms ease;
+  --mono:          'Courier New', Courier, monospace;
+}
+
+/* ── panel ──────────────────────────────────────────────── */
+.admin-panel {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  font-family: var(--mono);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  animation: fade-in 300ms ease both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── stats row ──────────────────────────────────────────── */
+.site-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--border);
+}
+
+.count-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  border-right: 1px solid var(--border);
+}
+
+.count-stat:last-child {
+  border-right: none;
+}
+
+.count-stat__label {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.count-stat__value {
+  font-size: 1.6rem;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* ── section wrapper ────────────────────────────────────── */
+.admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border);
+}
+
+/* ── switch bar ─────────────────────────────────────────── */
+.admin-switch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  gap: 16px;
+}
+
+.admin-switch-bar__label {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.admin-switch {
+  display: flex;
+  border: 1px solid var(--border);
+}
+
+.admin-switch__btn {
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border);
+  padding: 8px 16px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  white-space: nowrap;
+}
+
+.admin-switch__btn:last-child {
+  border-right: none;
+}
+
+.admin-switch__btn:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.admin-switch__btn--active {
+  background: var(--surface-raised);
+  color: var(--accent);
+}
+
+/* ── view panel ─────────────────────────────────────────── */
+.admin-view {
+  padding: 24px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  animation: expand 180ms ease both;
+}
+
+@keyframes expand {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.admin-placeholder {
+  font-size: 0.72rem;
+  color: var(--text-subtle);
+  letter-spacing: 0.04em;
+}

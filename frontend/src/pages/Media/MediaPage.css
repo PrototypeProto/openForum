@@ -1,0 +1,60 @@
+/* ============================================================
+   MediaPage.css
+   ============================================================ */
+
+.media-page {
+  padding: 3rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.media-heading {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2x1 per page */
+  gap: 2rem;
+}
+
+.media-error {
+  color: red;
+}
+
+.media-loading {
+  color: #6b7280;
+}
+
+/* --- Pagination -------------------------------------------- */
+
+.media-pagination {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.page-btn {
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  cursor: pointer;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.page-indicator {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+@media (max-width: 768px) {
+  .media-page { padding: 2rem 1.5rem; }
+  .media-grid { grid-template-columns: 1fr; }
+}

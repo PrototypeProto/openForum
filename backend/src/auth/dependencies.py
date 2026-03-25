@@ -18,17 +18,24 @@ class TokenBearer(HTTPBearer):
         super().__init__(auto_error=auto_error)
 
     async def __call__(self, request: Request) -> HTTPAuthorizationCredentials | None:
-        creds = await super().__call__(request)
+        # creds = await super().__call__(request)
+        token = self.get_token(request)
 
-        token = creds.credentials
+        # token = creds.credentials
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No token provided"
+            )
 
-        token_data = decode_token(token)
 
         if not self.token_valid(token):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid token"
             )
+
+        token_data = decode_token(token)
 
         if await token_in_blocklist(token_data['jti']):
             raise HTTPException(
@@ -42,13 +49,17 @@ class TokenBearer(HTTPBearer):
 
         return token_data
 
+    def get_token(self, request: Request) -> str | None:
+        return request.cookies.get("access_token")  # default
+
     def token_valid(self, token: str) -> bool:
         token_data = decode_token(token)
+        print(f"token_data: {token_data}")  # ← check this
 
         return token_data is not None
     
     def verify_token_data(self, token_data):
-        raise NotImplemented("Please Override this method")
+        raise NotImplementedError("Please Override this method")
 
 class AccessTokenBearer(TokenBearer):
     def verify_token_data(self, token_data: dict) -> None:
@@ -59,6 +70,9 @@ class AccessTokenBearer(TokenBearer):
             )
 
 class RefreshTokenBearer(TokenBearer):
+    def get_token(self, request: Request) -> str | None:
+        return request.cookies.get("refresh_token")
+
     def verify_token_data(self, token_data: dict) -> None:
         if token_data and not token_data["refresh"]:
             raise HTTPException(
