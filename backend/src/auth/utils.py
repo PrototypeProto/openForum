@@ -1,12 +1,14 @@
 from bcrypt import hashpw, checkpw, gensalt
 import jwt
+from jwt.exceptions import ExpiredSignatureError
 from src.config import Config
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import logging
+from fastapi.exceptions import HTTPException
 
 # 3600 sec -> 60 min -> 1 hr
-ACCESS_TOKEN_EXPIRY = 1
+ACCESS_TOKEN_EXPIRY = 15
 
 # Hash a password using bcrypt
 def generate_passwd_hash(password) -> str:
@@ -23,7 +25,7 @@ def create_access_token(user_data: dict, expiry: timedelta = None, refresh: bool
     payload = {}
 
     payload["user"] = user_data
-    payload["exp"] = datetime.now() + (expiry if expiry is not None else timedelta(hours=ACCESS_TOKEN_EXPIRY))
+    payload["exp"] = datetime.now(timezone.utc) + (expiry if expiry is not None else timedelta(minutes=ACCESS_TOKEN_EXPIRY))
     payload["jti"] = str(uuid4())
     # Has refresh token
     payload["refresh"] = refresh
@@ -46,6 +48,11 @@ def decode_token(token: str) -> dict:
         )
 
         return token_data
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
     except jwt.PyJWTError as e:
         logging.exception(e)
         return None

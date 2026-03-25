@@ -12,7 +12,7 @@ from fastapi.exceptions import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .service import AuthService
 from src.db.main import get_session
-from .utils import create_access_token, decode_token, verify_passwd
+from .utils import create_access_token, verify_passwd
 from datetime import datetime, timedelta
 from .dependencies import (
     RefreshTokenBearer,
@@ -70,6 +70,9 @@ async def create_user(
 
 @auth_router.post("/login", status_code=status.HTTP_200_OK)
 async def login_user(login_data: LoginUserModel, session: SessionDependency, response: Response):
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
+    
     user = await auth_service.get_username_from_user_table(login_data.username, session)
     if user is None:
         user1 = await auth_service.get_username_from_user_pending_table(login_data.username, session)

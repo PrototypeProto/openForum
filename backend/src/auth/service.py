@@ -15,7 +15,7 @@ from src.db.db_models import MemberRoleEnum, VerifyUserModel
 from src.db.models import PendingUser
 from src.db.users_redis import add_registered_user, get_user
 
-REFRESH_TOKEN_EXPIRY_MIN = 15
+REFRESH_TOKEN_EXPIRY_MIN = 60 * 24 # 1 day
 
 
 class AuthService:
