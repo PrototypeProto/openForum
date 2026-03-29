@@ -20,6 +20,18 @@ class MemberRoleEnum(str, Enum):
     USER = "user"
 
 
+class ReactionEmoji(str, Enum):
+    LIKE        = "👍"
+    DISLIKE     = "👎"
+    LAUGH       = "😂"
+    HEART       = "❤️"
+    FIRE        = "🔥"
+
+class AttachmentType(str, Enum):
+    IMAGE       = "image"
+    HYPERLINK   = "hyperlink"
+
+
 """
     What we use to enforce data input
 """
