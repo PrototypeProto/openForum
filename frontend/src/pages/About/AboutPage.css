@@ -1,0 +1,86 @@
+/* ============================================================
+   AboutPage.css
+   ============================================================ */
+
+.about-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  background-color: bisque;
+  border-radius: 20px;
+}
+
+/* --- Heading ---------------------------------------------- */
+
+.about-heading {
+  text-align: center;
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: 2.5rem;
+}
+
+/* --- Sections --------------------------------------------- */
+
+.about-section {
+  margin-bottom: 2rem;
+}
+
+.about-section span {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+/* --- Lists ------------------------------------------------ */
+
+.about-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.about-section li {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+}
+
+.about-section li div {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.about-section li span {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #6b7280;
+  text-transform: none;
+  letter-spacing: normal;
+  display: inline;
+}
+
+.about-section li p {
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.about-section li p + p {
+  margin-top: 0.3rem;
+}
