@@ -65,6 +65,7 @@ class AdminService:
         res = await session.exec(stmt)
 
         if res.rowcount == 0:
+            await session.rollback()
             raise Exception("Failed to delete user")
 
         session.add(user)
@@ -119,4 +120,4 @@ class AdminService:
             res = await session.exec(query)
             role = res.first()
             await set_user_role(username, role)  # update redis value
-            return role is MemberRoleEnum.ADMIN
+            return role == MemberRoleEnum.ADMIN

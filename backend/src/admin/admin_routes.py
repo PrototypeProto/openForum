@@ -95,9 +95,9 @@ async def authorize_pending_user(username: str, session: SessionDependency, toke
     new_user = None
     try:
         new_user = await admin_service.promote_pending_to_user(username, session)
-    except:
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete user"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete unverified user", 
         ) 
     if new_user is None:
         raise HTTPException(

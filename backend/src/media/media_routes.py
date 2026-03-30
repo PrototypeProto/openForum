@@ -81,7 +81,7 @@ async def get_media(
     file_path = (MEDIA_DIR / filename).resolve()
 
     # if resolved path escapes MEDIA_DIR, reject it
-    if not str(file_path).startswith(str(MEDIA_DIR.resolve())):
+    if not file_path.is_relative_to(MEDIA_DIR.resolve()):
         raise HTTPException(status_code=400, detail="Invalid path")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")

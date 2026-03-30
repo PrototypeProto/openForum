@@ -10,7 +10,7 @@ from .service import AuthService
 from typing import List, Any
 from src.db.models import User
 
-user_service = AuthService()
+auth_service = AuthService()
 
 class TokenBearer(HTTPBearer):
     
@@ -54,8 +54,6 @@ class TokenBearer(HTTPBearer):
 
     def token_valid(self, token: str) -> bool:
         token_data = decode_token(token)
-        print(f"token_data: {token_data}")  # ← check this
-
         return token_data is not None
     
     def verify_token_data(self, token_data):
@@ -83,12 +81,12 @@ class RefreshTokenBearer(TokenBearer):
 
 async def get_current_user_by_username(token_details: dict = Depends(AccessTokenBearer()), session: AsyncSession = Depends(get_session)) -> dict:
     user_username = token_details['user']['username']
-    user = await user_service.get_user_by_username(user_username, session)
+    user = await auth_service.get_username_from_user_table(user_username, session)
     return user
 
 async def get_current_user_uuid(token_details: dict = Depends(AccessTokenBearer()), session: AsyncSession = Depends(get_session)) -> dict:
     user_uuid = token_details['user']['uid']
-    return await user_service.get_user_by_uid(user_uuid, session)
+    return await auth_service.uuid_exists(user_uuid, session, True)
 
 
 # class RoleChecker:

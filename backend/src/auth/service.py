@@ -4,7 +4,7 @@ from src.db.models import (
     PendingUser,
 )
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, desc, update, insert, delete
+from sqlmodel import select, desc, update, insert, delete, exists
 from datetime import date, datetime, timedelta
 from .utils import generate_passwd_hash, verify_passwd
 from uuid import UUID
@@ -14,9 +14,10 @@ from .schemas import AccessTokenUserData, LoginResultEnum
 from src.db.db_models import MemberRoleEnum, VerifyUserModel
 from src.db.models import PendingUser
 from src.db.users_redis import add_registered_user, get_user
+from .dependencies import get_current_user_by_username, get_current_user_uuid
 
 REFRESH_TOKEN_EXPIRY_MIN = 60 * 24  # 1 day
-
+user_service
 
 class AuthService:
     """
@@ -109,6 +110,11 @@ class AuthService:
         elif await self.get_email_from_user_pending_table(email, session) is not None:
             return LoginResultEnum.PENDING
         return LoginResultEnum.DNE
+
+    async def uuid_exists(self, uuid: UUID, session: AsyncSession, search_user_else_unverified=True) -> bool:
+        stmt = select(exists().where(User.user_id == uuid))
+        res = await session.exec(stmt)
+        return False if res.one_or_none() is None else res.one()
 
     # # # # # # # # # # # # # # # # # # # #
     #   Helper methods

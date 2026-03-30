@@ -17,7 +17,7 @@ async def set_user_role(username: str, role: MemberRoleEnum) -> None:
     await redis_user_role.set(
         name=username,
         value=role,
-        ex=int(ROLE_EXPIRY.total_seconds()) if role is MemberRoleEnum.USER else None
+        ex=int(ROLE_EXPIRY.total_seconds()) if role == MemberRoleEnum.USER else None
     )
 
 async def get_user_role(username: str) -> MemberRoleEnum | None:

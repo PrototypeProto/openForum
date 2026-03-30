@@ -10,9 +10,9 @@ from fastapi.exceptions import HTTPException
 
 root_router = APIRouter()
 
-@root_router.get("/", status_code=200 )
-async def welcome():
-    return "You have reached the API" 
+# @root_router.get("/", status_code=200 )
+# async def welcome():
+#     return "You have reached the API" 
 
 @root_router.get("/")
 async def get_headers(

@@ -5,10 +5,10 @@ from src.config import Config
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import logging
-from fastapi.exceptions import HTTPException
 
 # 3600 sec -> 60 min -> 1 hr
 ACCESS_TOKEN_EXPIRY = 15
+
 
 # Hash a password using bcrypt
 def generate_passwd_hash(password) -> str:
@@ -17,15 +17,21 @@ def generate_passwd_hash(password) -> str:
     hashed_password = hashpw(pwd_bytes, salt)
     return hashed_password.decode("utf-8")
 
+
 # Check if the provided password matches the stored password (hashed)
 def verify_passwd(plain_password, hashed_password) -> bool:
     return checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
-def create_access_token(user_data: dict, expiry: timedelta = None, refresh: bool = False) -> str:
+
+def create_access_token(
+    user_data: dict, expiry: timedelta = None, refresh: bool = False
+) -> str:
     payload = {}
 
     payload["user"] = user_data
-    payload["exp"] = datetime.now(timezone.utc) + (expiry if expiry is not None else timedelta(minutes=ACCESS_TOKEN_EXPIRY))
+    payload["exp"] = datetime.now(timezone.utc) + (
+        expiry if expiry is not None else timedelta(minutes=ACCESS_TOKEN_EXPIRY)
+    )
     payload["jti"] = str(uuid4())
     # Has refresh token
     payload["refresh"] = refresh
@@ -42,17 +48,12 @@ def create_access_token(user_data: dict, expiry: timedelta = None, refresh: bool
 def decode_token(token: str) -> dict:
     try:
         token_data = jwt.decode(
-            jwt=token,
-            key=Config.JWT_SECRET,
-            algorithms=[Config.JWT_ALGORITHM]
+            jwt=token, key=Config.JWT_SECRET, algorithms=[Config.JWT_ALGORITHM]
         )
 
         return token_data
     except ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
+        raise Exception("Token has expired")
     except jwt.PyJWTError as e:
         logging.exception(e)
         return None
