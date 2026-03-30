@@ -31,3 +31,35 @@ Includes:
     <li>... and many more libraries to provide greater functionality and security</li>
 </ul>
 
+## TODO: Backend
+<ul>
+    <li>Custom errors & Error handling</li>
+    <li>Separate user vs server errors</li>
+    <li>Ensure safe database transactions, rolling back on failures</li>
+    <li>SSL certificates & automation</li>
+    <li>Security: </li>
+        <ul>
+            <li>Path traversal</li>
+            <li>SQL injection</li>
+            <li>XSS / HTML formatted forum message text</li>
+            <li>General sanitization from user input</li>
+            <li>Unsanitized filenames</li>
+            <li></li>
+            <li></li>
+        </ul>
+    <li>DB triggers for when user changes vote: like->dis / dis->like</li>
+    <li></li>
+    <li></li>
+</ul>
+
+## TODO: Frontend
+<ul>
+    <li>useMedia.ts: Implement fetching page ct</li>
+    <li>authContext: implement cookie storage for persistence and automatic retrieval/expiration</li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+</ul>
