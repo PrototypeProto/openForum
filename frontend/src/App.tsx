@@ -1,7 +1,7 @@
 import "./index.css";
 import { Route, Routes } from "react-router-dom";
 import HomePage from "./pages/Home/HomePage";
-import LoginPage from "./pages/Login-Signup/LoginPage";
+import LoginPage from "./pages/LoginSignup/LoginPage";
 import ProfilePage from "./pages/Profile/ProfilePage";
 import ErrorPage from "./pages/Error/ErrorPage";
 import LogoutPage from "./pages/Logout/Logout";
@@ -10,7 +10,7 @@ import ForumPage from "./pages/Forum/ForumPage";
 import MediaPage from "./pages/Media/MediaPage";
 import FileSharePage from "./pages/FileShare/FileSharePage";
 import AboutPage from "./pages/About/AboutPage";
-import AccountVerificationPage from "./pages/Login-Signup/AccountVerificationPage";
+import AccountVerificationPage from "./pages/LoginSignup/AccountVerificationPage";
 import { GuestRoute } from "./guards/GuestRoute";
 import { ProtectedRoute } from "./guards/ProtectedRoute";
 

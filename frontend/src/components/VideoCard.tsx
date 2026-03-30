@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import "./css/VideoCard.css";
+import "./VideoCard.css";
 import { getMediaFile } from "../services/media/mediaService";
 
 interface VideoCardProps {

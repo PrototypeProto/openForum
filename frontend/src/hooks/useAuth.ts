@@ -26,9 +26,6 @@ export function useAuth() {
       if (response.ok && response.data) {
         setTokens(response.data.access_token, response.data.refresh_token);
         setAuthData(response.data.user);
-        console.log(response)
-        console.log(response.data.access_token)
-        console.log(accessToken)
         localStorage.setItem("user", JSON.stringify(response.data.user));
         localStorage.removeItem("temp_user");
       }

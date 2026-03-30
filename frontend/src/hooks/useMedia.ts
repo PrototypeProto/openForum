@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { getMediaList } from "../services/media/mediaService";
+import { getMediaList, getMediaPageCt } from "../services/media/mediaService";
+import type { APIResponse } from "../types/authType";
 
 export function useMedia() {
   const [filenames, setFilenames] = useState<string[]>([]);
@@ -8,17 +9,28 @@ export function useMedia() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // CONSIDER OVERHAULING THIS aka implement this better
+  // const pageCtData: APIResponse<number> = await getMediaPageCt();
+
+  //   if (pageCtData.ok && pageCtData.data) {
+  //     setTotalPages(pageCtData.data); // data is number >= 0 directly
+  //   } else {
+  //     setError(pageCtData.error);
+  //   }
+
   const fetchPage = async (pageNum: number) => {
     setLoading(true);
     setError(null);
 
     const { data, ok, error } = await getMediaList(pageNum);
-
+    
     if (ok && data) {
       setFilenames(data); // data is string[] directly
     } else {
       setError(error);
     }
+
+    
 
     setLoading(false);
   };
