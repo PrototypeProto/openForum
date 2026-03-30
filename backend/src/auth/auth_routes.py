@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from .dependencies import (
     RefreshTokenBearer,
     access_token_bearer,
-    get_current_user_by_username,
+    get_current_user_by_username
 )
 from src.db.tokens_redis import add_jti_to_blocklist
 from src.db.roles_redis import *

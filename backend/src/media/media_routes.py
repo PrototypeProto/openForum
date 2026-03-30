@@ -10,8 +10,6 @@ from datetime import datetime, timedelta
 from src.auth.dependencies import (
     RefreshTokenBearer,
     access_token_bearer,
-    get_current_user_uuid,
-    get_current_user_by_username,
 )
 from .service import MediaService
 from uuid import UUID

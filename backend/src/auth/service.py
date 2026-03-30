@@ -14,10 +14,10 @@ from .schemas import AccessTokenUserData, LoginResultEnum
 from src.db.db_models import MemberRoleEnum, VerifyUserModel
 from src.db.models import PendingUser
 from src.db.users_redis import add_registered_user, get_user
-from .dependencies import get_current_user_by_username, get_current_user_uuid
+from .dependencies import access_token_bearer
 
 REFRESH_TOKEN_EXPIRY_MIN = 60 * 24  # 1 day
-user_service
+
 
 class AuthService:
     """
@@ -111,7 +111,9 @@ class AuthService:
             return LoginResultEnum.PENDING
         return LoginResultEnum.DNE
 
-    async def uuid_exists(self, uuid: UUID, session: AsyncSession, search_user_else_unverified=True) -> bool:
+    async def uuid_exists(
+        self, uuid: UUID, session: AsyncSession, search_user_else_unverified=True
+    ) -> bool:
         stmt = select(exists().where(User.user_id == uuid))
         res = await session.exec(stmt)
         return False if res.one_or_none() is None else res.one()
@@ -146,3 +148,8 @@ class AuthService:
         statement = select(PendingUser).where(PendingUser.email == email)
         result = await session.exec(statement)
         return result.first()
+
+    # # # # # # # # # # # # # # # # # # # #
+    #   Role checker methods
+    # # # # # # # # # # # # # # # # # # # #
+

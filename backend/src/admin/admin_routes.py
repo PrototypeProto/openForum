@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from src.auth.dependencies import (
     RefreshTokenBearer,
     access_token_bearer,
-    get_current_user_by_username,
 )
 from src.db.roles_redis import set_user_role, get_user_role
 from src.db.db_models import (
@@ -45,8 +44,8 @@ async def get_all_users(session: SessionDependency, token_details: dict = access
     users = await admin_service.get_all_users(session)
     return users
 
-@admin_router.get("/unregistered/users", response_model=List[Tuple[UUID, str]])
-async def get_unregistered_users(session: SessionDependency, token_details: dict = access_token_bearer):
+@admin_router.get("/unapproved/users", response_model=List[Tuple[UUID, str]])
+async def get_unapproved_users(session: SessionDependency, token_details: dict = access_token_bearer):
     '''
     Gets a list of newly registered users who want access to the site [(userid, username),]
     '''
