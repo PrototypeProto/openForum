@@ -1,18 +1,10 @@
-from typing import Optional, Union, Annotated
-
-"""
-    Optional[type(s)]
-    Union() or (type | None)
-    Annotated[type, "annotation textr"]
-"""
 from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 from src.auth.auth_routes import auth_router
 from src.root_routes import root_router
 from src.admin.admin_routes import admin_router
 from src.media.media_routes import media_router
-from src.config import Settings
-from src.db.main import init_db
+from src.config import Config
 
 from contextlib import asynccontextmanager
 
@@ -20,11 +12,7 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def life_span(app: FastAPI):
     print("Server is starting...")
-
-    # If we want to autogenerate the DB based on our SQLModels
     # Using Alembic instead to manage DB updates
-    # await init_db()
-
     yield
     print("Server has been stopped...")
 
@@ -43,7 +31,7 @@ app = FastAPI(
 # app.include_router(router=router, prefix=f"/{api_version}/user")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[Config.ALLOWED_ORIGINS],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
