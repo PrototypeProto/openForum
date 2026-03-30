@@ -90,6 +90,7 @@ async def get_current_user_uuid(token_details: dict = Depends(AccessTokenBearer(
     user_uuid = token_details['user']['uid']
     return await user_service.get_user_by_uid(user_uuid, session)
 
+
 # class RoleChecker:
 #     def __init__(self, allowed_roles: List[str]) -> None:
 #         self.allowed_roles = allowed_roles

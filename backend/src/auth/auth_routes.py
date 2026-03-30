@@ -1,10 +1,4 @@
 from typing import Optional, Union, Annotated, List
-
-"""
-    Optional[type(s)]
-    Union() or (type | None)
-    Annotated[type, "annotation textr"]
-"""
 from fastapi import FastAPI, Header, APIRouter, Depends, Response
 from fastapi import status
 from fastapi.responses import JSONResponse
@@ -21,16 +15,17 @@ from .dependencies import (
 )
 from src.db.tokens_redis import add_jti_to_blocklist
 from src.db.roles_redis import *
-from src.db.db_models import UserDataModel, RegisterUserModel, LoginUserModel, MemberRoleEnum
+from src.db.db_models import (
+    UserDataModel,
+    RegisterUserModel,
+    LoginUserModel,
+    MemberRoleEnum,
+)
 from .schemas import AccessTokenUserData, LoginResultEnum
 from uuid import UUID
 from src.db.models import User, PendingUser
 
-"""
-    A custom route to access users
-    simple CRUD routes
-    calls service() methods to perform business logic
-"""
+
 REFRESH_TOKEN_EXPIRY_DAYS = 2
 
 auth_router = APIRouter()
@@ -51,33 +46,45 @@ async def create_user(
         user_data.nickname = None
     if user_data.request == "":
         user_data.request = None
-    if await auth_service.username_exists(user_data.username, session) != LoginResultEnum.DNE:
+    if (
+        await auth_service.username_exists(user_data.username, session)
+        != LoginResultEnum.DNE
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User with username already exists",
         )
     if user_data.email is not None:
-        if await auth_service.email_exists(user_data.email, session) != LoginResultEnum.DNE:
+        if (
+            await auth_service.email_exists(user_data.email, session)
+            != LoginResultEnum.DNE
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User with email already exists",
             )
-
 
     new_user = await auth_service.register_user(user_data, session)
     return new_user
 
 
 @auth_router.post("/login", status_code=status.HTTP_200_OK)
-async def login_user(login_data: LoginUserModel, session: SessionDependency, response: Response):
+async def login_user(
+    login_data: LoginUserModel, session: SessionDependency, response: Response
+):
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
-    
+
     user = await auth_service.get_username_from_user_table(login_data.username, session)
     if user is None:
-        user1 = await auth_service.get_username_from_user_pending_table(login_data.username, session)
+        user1 = await auth_service.get_username_from_user_pending_table(
+            login_data.username, session
+        )
         if user1 is not None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is currently pending approval, try again later...")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is currently pending approval, try again later...",
+            )
 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -99,7 +106,7 @@ async def login_user(login_data: LoginUserModel, session: SessionDependency, res
                 key="access_token",
                 value=access_token,
                 httponly=True,
-                secure=False,   # set True in production (requires HTTPS)
+                secure=False,  # set True in production (requires HTTPS)
                 samesite="lax",
             )
             response.set_cookie(
@@ -110,15 +117,16 @@ async def login_user(login_data: LoginUserModel, session: SessionDependency, res
                 samesite="lax",
             )
             return {
-                    "message": "login successful",
-                    "access_token": access_token,
-                    "refresh_token": refresh_token,
-                    "user": data_dict,
+                "message": "login successful",
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "user": data_dict,
             }
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN, detail="Invalid username and/or password"
     )
+
 
 @auth_router.get("/refresh_token")
 async def get_new_access_token(token_details: dict = Depends(RefreshTokenBearer())):
@@ -154,6 +162,3 @@ async def revoke_token(token_details: dict = access_token_bearer):
     return JSONResponse(
         content={"message": "Logged out successfully"}, status_code=status.HTTP_200_OK
     )
-
-
-    

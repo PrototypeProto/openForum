@@ -37,7 +37,7 @@ SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 )
 async def get_all_users(session: SessionDependency, token_details: dict = access_token_bearer):
     '''
-    NOTE: Subject for removal
+    NOTE: Subject for overhaul to just return user count
     Subject for removal unless wanting to list all users for some reason
     '''
     if not await admin_service.verify_admin(token_details, session):
@@ -71,7 +71,7 @@ async def promote_user(
         )
 
     # promote user else error
-    res = await admin_service.raise_user_privilege(username, role, session)
+    res = await admin_service.update_user_privilege(username, role, session)
     if res is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Failed to update perms"

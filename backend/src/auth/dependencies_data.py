@@ -1,12 +1,10 @@
-from .dependencies import RoleChecker
+# from .dependencies import RoleChecker
 from fastapi import Depends
-# from src.db.db_enum_models import MemberRoleEnum
+# from src.db.db_models import MemberRoleEnum
 
+'''
+This checks the role in the token details of the user, but since that may be edited by the user,
+possibly do an async check in the db/redis to see if the user has the required permissions to access specified resources
+'''
 
-# role_checker = Depends(RoleChecker([MemberRoleEnum.MEMBER]))
-# admin_rolechecker = Depends(RoleChecker([MemberRoleEnum.ADMIN]))
-# coach_rolechecker = Depends(RoleChecker([MemberRoleEnum.ADMIN, MemberRoleEnum.COACH]))
-# officer_rolechecker = Depends(RoleChecker([MemberRoleEnum.ADMIN, MemberRoleEnum.OFFICER]))
-# member_rolechecker = Depends(RoleChecker([MemberRoleEnum.ADMIN, MemberRoleEnum.COACH, MemberRoleEnum.OFFICER, MemberRoleEnum.MEMBER]))
-# general_member_rolechecker = Depends(RoleChecker([MemberRoleEnum.ADMIN, MemberRoleEnum.COACH, MemberRoleEnum.OFFICER, MemberRoleEnum.MEMBER, MemberRoleEnum.INACTIVE, MemberRoleEnum.ALUMNI]))
-# public_rolechecker = Depends(RoleChecker([role for role in MemberRoleEnum]))
+# role_checker = Depends(RoleChecker([MemberRoleEnum.USER, MemberRoleEnum.ADMIN, MemberRoleEnum.VIP]))

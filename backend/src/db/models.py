@@ -145,15 +145,13 @@ class User(UserBaseModel, table=True):
     NOTE: START FORUM DATA 
 ##################################"""
 
-# # # # # # # # # # # # # # # # # # # #
-# Topic
-# # # # # # # # # # # # # # # # # # # #
-
 
 class Topic(SQLModel, table=True):
     """
     Top-level category that groups related threads.
     e.g. 'General Discussion', 'Announcements', 'Random'
+
+    thread and reply count have corresponding triggers to keep them updated
     """
 
     __tablename__ = "topic"
@@ -187,14 +185,14 @@ class Topic(SQLModel, table=True):
     )  # if True, no new threads can be created
 
 
-# # # # # # # # # # # # # # # # # # # #
-# Thread
-# # # # # # # # # # # # # # # # # # # #
-
 
 class Thread(SQLModel, table=True):
     """
     A thread/post inside a topic, created by a user.
+
+    thread and reply count have corresponding triggers to keep them updated
+
+    # NOTE: viewcount is currently not planned to be supported
     """
 
     __tablename__ = "thread"
@@ -243,10 +241,6 @@ class Thread(SQLModel, table=True):
     )
 
 
-# # # # # # # # # # # # # # # # # # # #
-# Thread Vote (upvote/downvote)
-# # # # # # # # # # # # # # # # # # # #
-
 
 class ThreadVote(SQLModel, table=True):
     """
@@ -267,10 +261,6 @@ class ThreadVote(SQLModel, table=True):
         )
     )
 
-
-# # # # # # # # # # # # # # # # # # # #
-# Thread Reaction
-# # # # # # # # # # # # # # # # # # # #
 
 # class ThreadReaction(SQLModel, table=True):
 #     """
@@ -293,10 +283,6 @@ class ThreadVote(SQLModel, table=True):
 #         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow)
 #     )
 
-
-# # # # # # # # # # # # # # # # # # # #
-# Reply
-# # # # # # # # # # # # # # # # # # # #
 
 
 class Reply(SQLModel, table=True):
@@ -336,10 +322,6 @@ class Reply(SQLModel, table=True):
     )
 
 
-# # # # # # # # # # # # # # # # # # # #
-# Reply Vote
-# # # # # # # # # # # # # # # # # # # #
-
 
 class ReplyVote(SQLModel, table=True):
     """
@@ -360,10 +342,6 @@ class ReplyVote(SQLModel, table=True):
         )
     )
 
-
-# # # # # # # # # # # # # # # # # # # #
-# Reply Attachment
-# # # # # # # # # # # # # # # # # # # #
 
 
 class ReplyAttachment(SQLModel, table=True):

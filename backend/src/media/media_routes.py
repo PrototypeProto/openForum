@@ -48,7 +48,7 @@ ALLOWED_EXTENSIONS = set(MEDIA_TYPES.keys())
 async def get_page_count(
     session: SessionDependency,
     token_details: dict = access_token_bearer):
-    if not await auth_service.is_verified_user(token_details, session):
+    if not await auth_service.is_valid_user_token(token_details, session):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid perms"
         )
@@ -61,7 +61,7 @@ async def list_media_page(
     page: int = Query(default=1, ge=1),
     token_details: dict = access_token_bearer,
 ):
-    if not await auth_service.is_verified_user(token_details, session):
+    if not await auth_service.is_valid_user_token(token_details, session):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid perms"
         )
@@ -72,7 +72,7 @@ async def list_media_page(
 async def get_media(
     filename: str, session: SessionDependency, token_details: dict = access_token_bearer
 ):
-    if not await auth_service.is_verified_user(token_details, session):
+    if not await auth_service.is_valid_user_token(token_details, session):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid perms"
         )
