@@ -16,7 +16,8 @@ from enum import Enum
 
 
 # TODO:
-# NOTE:
+# NOTE: Under no circumstances, should a user's UUID 
+# be easily accessible by anyone that is not the user themselves
 class UserID(SQLModel, table=True):
     """
     The ID of any account, whether currently pending or approved. Primary identifier
@@ -149,9 +150,11 @@ class User(SQLModel, table=True):
 class Topic(SQLModel, table=True):
     """
     Top-level category that groups related threads.
-    e.g. 'General Discussion', 'Announcements', 'Random'
+    Organized under broaders categories, in order
+        e.g. 'General Discussion', 'Announcements', 'Random'
 
-    thread and reply count have corresponding triggers to keep them updated
+    thread & reply count and last activityat & threadid have corresponding triggers to keep them updated
+    group_id is optional to allow creation of topic to then assign to a grouping
     """
 
     __tablename__ = "topic"
@@ -193,6 +196,9 @@ class Topic(SQLModel, table=True):
 
 
 class TopicGroup(SQLModel, table=True):
+    '''
+    Organizes the topic table under broader categories
+    '''
     __tablename__ = "topic_group"
 
     group_id: UUID = Field(
@@ -213,7 +219,8 @@ class Thread(SQLModel, table=True):
 
     thread and reply count have corresponding triggers to keep them updated
 
-    # NOTE: viewcount is currently not planned to be supported
+    NOTE: viewcount is currently not planned to be supported
+    TODO: Requires triggers: updated_at, reply_count, vote_counts, [view_count tentative]
     """
 
     __tablename__ = "thread"
@@ -222,7 +229,8 @@ class Thread(SQLModel, table=True):
         sa_column=Column(postgres.UUID, primary_key=True, default=uuid4, nullable=False)
     )
     topic_id: UUID = Field(foreign_key="topic.topic_id", nullable=False)
-    author_id: UUID = Field(foreign_key="user_id.id", nullable=False)
+    author_id: UUID = Field(foreign_key="user_id.id", nullable=False, exclude=True)
+    auther_username: str = Field(foreign_key="user.username", nullable=False)
     title: str = Field(
         sa_column=Column(postgres.VARCHAR, nullable=False),
         max_length=200,
@@ -264,8 +272,11 @@ class Thread(SQLModel, table=True):
 
 class ThreadVote(SQLModel, table=True):
     """
-    Tracks which user voted on which thread and whether it was up or down.
+    Tracks which user voted on which thread and whether it was up/downvoted
     Composite PK prevents a user voting twice on the same thread.
+
+    NOTE: dropped created_at
+    TODO: trigger updating thread table
     """
 
     __tablename__ = "thread_vote"
@@ -275,11 +286,6 @@ class ThreadVote(SQLModel, table=True):
         foreign_key="thread.thread_id", primary_key=True, nullable=False
     )
     is_upvote: bool = Field(sa_column=Column(postgres.BOOLEAN, nullable=False))
-    created_at: datetime = Field(
-        sa_column=Column(
-            postgres.TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow
-        )
-    )
 
 
 # class ThreadReaction(SQLModel, table=True):
@@ -288,7 +294,7 @@ class ThreadVote(SQLModel, table=True):
 #     Composite PK prevents a user reacting with the same emoji twice.
 #     """
 #     __tablename__ = "thread_reaction"
-
+# 
 #     user_id: UUID = Field(foreign_key="user_id.id", primary_key=True, nullable=False)
 #     thread_id: UUID = Field(foreign_key="thread.thread_id", primary_key=True, nullable=False)
 #     emoji: ReactionEmoji = Field(
@@ -309,6 +315,11 @@ class Reply(SQLModel, table=True):
     A reply to a thread, or to another reply (nested).
     parent_reply_id = None means it's a direct thread reply.
     parent_reply_id = some UUID means it's a reply to a reply.
+
+    TODO: trigger updating thread & topic table
+    NOTE: updated_at also used as a flag to note if user has edited their post
+    NOTE: decide how to deal with delete
+    NOTE: affected by voting triggers
     """
 
     __tablename__ = "reply"
@@ -317,7 +328,8 @@ class Reply(SQLModel, table=True):
         sa_column=Column(postgres.UUID, primary_key=True, default=uuid4, nullable=False)
     )
     thread_id: UUID = Field(foreign_key="thread.thread_id", nullable=False)
-    author_id: UUID = Field(foreign_key="user_id.id", nullable=False)
+    author_id: UUID = Field(foreign_key="user_id.id", nullable=False, exclude=True)
+    auther_username: str = Field(foreign_key="user.username", nullable=False)
     parent_reply_id: Optional[UUID] = Field(
         foreign_key="reply.reply_id", nullable=True, default=None
     )  # self-referential — None means top-level reply
@@ -345,56 +357,55 @@ class ReplyVote(SQLModel, table=True):
     """
     Tracks which user voted on which reply and whether it was up or down.
     Composite PK prevents a user voting twice on the same reply.
+
+    TODO: trigger affects reply vote count
     """
 
     __tablename__ = "reply_vote"
 
-    user_id: UUID = Field(foreign_key="user_id.id", primary_key=True, nullable=False)
+    user_id: UUID = Field(foreign_key="user_id.id", primary_key=True, nullable=False, exclude=True)
     reply_id: UUID = Field(
         foreign_key="reply.reply_id", primary_key=True, nullable=False
     )
     is_upvote: bool = Field(sa_column=Column(postgres.BOOLEAN, nullable=False))
-    created_at: datetime = Field(
-        sa_column=Column(
-            postgres.TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow
-        )
-    )
 
 
-class ReplyAttachment(SQLModel, table=True):
-    """
-    An attachment on a reply — either an image URL or a hyperlink.
-    A reply can have multiple attachments.
-    """
+# class ReplyAttachment(SQLModel, table=True):
+#     """
+#     An attachment on a reply — either an image URL or a hyperlink.
+#     A reply can have multiple attachments.
 
-    __tablename__ = "reply_attachment"
+#     TODO: WIP on how to best implement
+#     """
 
-    attachment_id: UUID = Field(
-        sa_column=Column(postgres.UUID, primary_key=True, default=uuid4, nullable=False)
-    )
-    reply_id: UUID = Field(foreign_key="reply.reply_id", nullable=False)
-    attachment_type: AttachmentType = Field(
-        sa_column=Column(
-            SAEnum(
-                AttachmentType,
-                name="attachment_type",
-                create_type=False,
-                values_callable=lambda x: [e.value for e in x],
-            ),
-            nullable=False,
-        )
-    )
-    url: str = Field(
-        sa_column=Column(postgres.VARCHAR, nullable=False), max_length=2048
-    )
-    label: Optional[str] = Field(
-        sa_column=Column(postgres.VARCHAR, nullable=True), max_length=200
-    )  # display text for hyperlinks
-    created_at: datetime = Field(
-        sa_column=Column(
-            postgres.TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow
-        )
-    )
+#     __tablename__ = "reply_attachment"
+
+#     attachment_id: UUID = Field(
+#         sa_column=Column(postgres.UUID, primary_key=True, default=uuid4, nullable=False)
+#     )
+#     reply_id: UUID = Field(foreign_key="reply.reply_id", nullable=False)
+#     attachment_type: AttachmentType = Field(
+#         sa_column=Column(
+#             SAEnum(
+#                 AttachmentType,
+#                 name="attachment_type",
+#                 create_type=False,
+#                 values_callable=lambda x: [e.value for e in x],
+#             ),
+#             nullable=False,
+#         )
+#     )
+#     url: str = Field(
+#         sa_column=Column(postgres.VARCHAR, nullable=False), max_length=2048
+#     )
+#     label: Optional[str] = Field(
+#         sa_column=Column(postgres.VARCHAR, nullable=True), max_length=200
+#     )  # display text for hyperlinks
+#     created_at: datetime = Field(
+#         sa_column=Column(
+#             postgres.TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow
+#         )
+#     )
 
 
 """##################################
