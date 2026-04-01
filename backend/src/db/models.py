@@ -16,7 +16,7 @@ from enum import Enum
 
 
 # TODO:
-# NOTE: Under no circumstances, should a user's UUID 
+# NOTE: Under no circumstances, should a user's UUID
 # be easily accessible by anyone that is not the user themselves
 class UserID(SQLModel, table=True):
     """
@@ -191,14 +191,15 @@ class Topic(SQLModel, table=True):
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True)
     )
     last_thread_id: Optional[UUID] = Field(
-        foreign_key="thread.thread_id", nullable=True
+        sa_column=Column(postgres.UUID, nullable=True, default=None), default=None
     )
 
 
 class TopicGroup(SQLModel, table=True):
-    '''
+    """
     Organizes the topic table under broader categories
-    '''
+    """
+
     __tablename__ = "topic_group"
 
     group_id: UUID = Field(
@@ -221,6 +222,7 @@ class Thread(SQLModel, table=True):
 
     NOTE: viewcount is currently not planned to be supported
     TODO: Requires triggers: updated_at, reply_count, vote_counts, [view_count tentative]
+    NOTE: Must do a JOIN to add user.username as author_id will NOT be shared publicly
     """
 
     __tablename__ = "thread"
@@ -230,7 +232,6 @@ class Thread(SQLModel, table=True):
     )
     topic_id: UUID = Field(foreign_key="topic.topic_id", nullable=False)
     author_id: UUID = Field(foreign_key="user_id.id", nullable=False, exclude=True)
-    auther_username: str = Field(foreign_key="user.username", nullable=False)
     title: str = Field(
         sa_column=Column(postgres.VARCHAR, nullable=False),
         max_length=200,
@@ -268,6 +269,12 @@ class Thread(SQLModel, table=True):
     view_count: int = Field(
         sa_column=Column(postgres.INTEGER, nullable=False, default=0), default=0
     )
+    last_activity_at: Optional[datetime] = Field(
+        sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True, index=True)
+    )  # None = pinned forever
+    last_activity: Optional[UUID] = Field(
+        sa_column=Column(postgres.UUID, nullable=True, default=None), default=None
+    )
 
 
 class ThreadVote(SQLModel, table=True):
@@ -277,6 +284,7 @@ class ThreadVote(SQLModel, table=True):
 
     NOTE: dropped created_at
     TODO: trigger updating thread table
+    NOTE: if user revokes their vote (unlikes their like, but not a dislike), delete entry, else update
     """
 
     __tablename__ = "thread_vote"
@@ -294,7 +302,7 @@ class ThreadVote(SQLModel, table=True):
 #     Composite PK prevents a user reacting with the same emoji twice.
 #     """
 #     __tablename__ = "thread_reaction"
-# 
+#
 #     user_id: UUID = Field(foreign_key="user_id.id", primary_key=True, nullable=False)
 #     thread_id: UUID = Field(foreign_key="thread.thread_id", primary_key=True, nullable=False)
 #     emoji: ReactionEmoji = Field(
@@ -320,6 +328,7 @@ class Reply(SQLModel, table=True):
     NOTE: updated_at also used as a flag to note if user has edited their post
     NOTE: decide how to deal with delete
     NOTE: affected by voting triggers
+    NOTE: Must do a JOIN to add user.username as author_id will NOT be shared publicly
     """
 
     __tablename__ = "reply"
@@ -329,7 +338,6 @@ class Reply(SQLModel, table=True):
     )
     thread_id: UUID = Field(foreign_key="thread.thread_id", nullable=False)
     author_id: UUID = Field(foreign_key="user_id.id", nullable=False, exclude=True)
-    auther_username: str = Field(foreign_key="user.username", nullable=False)
     parent_reply_id: Optional[UUID] = Field(
         foreign_key="reply.reply_id", nullable=True, default=None
     )  # self-referential — None means top-level reply
@@ -359,11 +367,12 @@ class ReplyVote(SQLModel, table=True):
     Composite PK prevents a user voting twice on the same reply.
 
     TODO: trigger affects reply vote count
+    NOTE: see thread_vote for similar behavior
     """
 
     __tablename__ = "reply_vote"
 
-    user_id: UUID = Field(foreign_key="user_id.id", primary_key=True, nullable=False, exclude=True)
+    user_id: UUID = Field(foreign_key="user_id.id", primary_key=True, nullable=False)
     reply_id: UUID = Field(
         foreign_key="reply.reply_id", primary_key=True, nullable=False
     )
