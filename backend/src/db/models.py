@@ -32,7 +32,7 @@ class UserID(SQLModel, table=True):
         return f"<User: {self.id}"
 
 
-class PendingUser(UserBaseModel, table=True):
+class PendingUser(SQLModel, table=True):
     """
     The user registers with their own information, and db automatically assigns an id from UserID table.
     Upon valid parameters, data sent to server will first generate a user_id then insert into pending_user table.
@@ -75,7 +75,7 @@ class PendingUser(UserBaseModel, table=True):
         return f"<User: `{self.username}` identified by id: `{self.user_id}` and name `{self.nickname}`>"
 
 
-class User(UserBaseModel, table=True):
+class User(SQLModel, table=True):
     """
     Verified user, deletes entry in corresponding pending_user table once a pending user is verified
     """
@@ -159,6 +159,7 @@ class Topic(SQLModel, table=True):
     topic_id: UUID = Field(
         sa_column=Column(postgres.UUID, primary_key=True, default=uuid4, nullable=False)
     )
+    group_id: Optional[UUID] = Field(foreign_key="topic_group.group_id", nullable=True)
     name: str = Field(
         sa_column=Column(postgres.VARCHAR, unique=True, nullable=False),
         max_length=100,
@@ -183,7 +184,27 @@ class Topic(SQLModel, table=True):
     is_locked: bool = Field(
         sa_column=Column(postgres.BOOLEAN, nullable=False, default=False), default=False
     )  # if True, no new threads can be created
+    last_activity_at: Optional[datetime] = Field(
+        sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True)
+    )
+    last_thread_id: Optional[UUID] = Field(
+        foreign_key="thread.thread_id", nullable=True
+    )
 
+
+class TopicGroup(SQLModel, table=True):
+    __tablename__ = "topic_group"
+
+    group_id: UUID = Field(
+        sa_column=Column(postgres.UUID, primary_key=True, default=uuid4, nullable=False)
+    )
+    name: str = Field(
+        sa_column=Column(postgres.VARCHAR, unique=True, nullable=False),
+        max_length=100,
+    )
+    display_order: int = Field(
+        sa_column=Column(postgres.INTEGER, nullable=False, default=0), default=0
+    )
 
 
 class Thread(SQLModel, table=True):
@@ -241,7 +262,6 @@ class Thread(SQLModel, table=True):
     )
 
 
-
 class ThreadVote(SQLModel, table=True):
     """
     Tracks which user voted on which thread and whether it was up or down.
@@ -284,7 +304,6 @@ class ThreadVote(SQLModel, table=True):
 #     )
 
 
-
 class Reply(SQLModel, table=True):
     """
     A reply to a thread, or to another reply (nested).
@@ -322,7 +341,6 @@ class Reply(SQLModel, table=True):
     )
 
 
-
 class ReplyVote(SQLModel, table=True):
     """
     Tracks which user voted on which reply and whether it was up or down.
@@ -341,7 +359,6 @@ class ReplyVote(SQLModel, table=True):
             postgres.TIMESTAMP(timezone=True), nullable=False, default=datetime.utcnow
         )
     )
-
 
 
 class ReplyAttachment(SQLModel, table=True):

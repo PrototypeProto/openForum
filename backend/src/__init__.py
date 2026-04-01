@@ -4,6 +4,7 @@ from src.auth.auth_routes import auth_router
 from src.root_routes import root_router
 from src.admin.admin_routes import admin_router
 from src.media.media_routes import media_router
+from src.forum.forum_routes import forum_router
 from src.config import Config
 
 from contextlib import asynccontextmanager
@@ -36,9 +37,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.include_router(router=root_router, prefix="")
-app.include_router(router=auth_router, prefix="/auth")
-app.include_router(router=admin_router, prefix="/admin")
-app.include_router(router=media_router, prefix="/media")
+app.include_router(router=root_router)
+app.include_router(router=auth_router)
+app.include_router(router=admin_router)
+app.include_router(router=media_router)
+app.include_router(router=forum_router)
 # app.include_router(router=product_router, prefix="/products")
 # app.include_router(router=member_router, prefix="/member")

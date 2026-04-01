@@ -8,7 +8,7 @@ from fastapi import FastAPI, Header, APIRouter
 from fastapi import status
 from fastapi.exceptions import HTTPException
 
-root_router = APIRouter()
+root_router = APIRouter(prefix="", tags=["root"])
 
 # @root_router.get("/", status_code=200 )
 # async def welcome():

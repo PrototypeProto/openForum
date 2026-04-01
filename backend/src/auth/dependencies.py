@@ -90,7 +90,7 @@ async def get_current_user_uuid(
     token_details: dict = Depends(AccessTokenBearer()),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    user_uuid = token_details["user"]["uid"]
+    user_uuid = token_details["user"]["user_id"]
     return await uuid_exists(user_uuid, session, True)
 
 

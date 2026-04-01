@@ -21,7 +21,7 @@ from pydantic import Field
 
 REFRESH_TOKEN_EXPIRY_DAYS = 2
 
-media_router = APIRouter(dependencies=[access_token_bearer])
+media_router = APIRouter(prefix="/media", tags=["media"], dependencies=[access_token_bearer])
 
 auth_service = AuthService()
 media_service = MediaService()
@@ -127,7 +127,7 @@ async def delete_file(session: SessionDependency, filename: str, token_details: 
     file_path = (MEDIA_DIR / filename).resolve()
 
     # if resolved path escapes MEDIA_DIR, reject it
-    if not str(file_path).startswith(str(MEDIA_DIR.resolve())):
+    if not file_path.is_relative_to(MEDIA_DIR.resolve()):
         raise HTTPException(status_code=400, detail="Invalid path")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")

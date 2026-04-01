@@ -24,7 +24,7 @@ from src.db.models import User, PendingUser
 
 
 
-admin_router = APIRouter()
+admin_router = APIRouter(prefix="/admin", tags=["admin"])
 admin_service = AdminService()
 auth_service = AuthService()
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]

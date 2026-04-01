@@ -28,7 +28,7 @@ from src.db.models import User, PendingUser
 
 REFRESH_TOKEN_EXPIRY_DAYS = 2
 
-auth_router = APIRouter()
+auth_router = APIRouter(prefix="/auth", tags=["authentication"])
 auth_service = AuthService()
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
