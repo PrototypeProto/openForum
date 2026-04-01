@@ -6,7 +6,8 @@ services:
     shm_size: 1024mb
     restart: always
     ports:
-      - 5432:5432
+      - "127.0.0.1:5432:5432" # bind to Host Machine
+      # - 5432:5432 # bind to 0.0.0.0
     volumes:
       - pgsql_portfolio:/var/lib/postgresql
     environment:
@@ -17,7 +18,8 @@ services:
     image: redis:latest
     restart: always
     ports:
-      - 6379:6379
+      - "127.0.0.1:6379:6379" # bind to Host Machine
+      # - 6379:6379 # bind to 0.0.0.0
 
   frontend:
     container_name: portfolio-fe
@@ -29,7 +31,8 @@ services:
       - /frontend/node_modules
     command: npm run dev -- --host
     ports:
-      - 5173:5173
+      - "127.0.0.1:5173:5173" # bind to Host Machine
+      # - 5173:5173 # bind to 0.0.0.0
     
 volumes:
   pgsql_portfolio:
