@@ -327,7 +327,7 @@ class Thread(SQLModel, table=True):
     last_activity_at: Optional[datetime] = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True, index=True)
     )
-    last_activity: Optional[UUID] = Field(nullable=True, default=None)
+    last_activity: Optional[UUID] = Field(nullable=True, default=None) # a replyid
 
 
 class ThreadVote(SQLModel, table=True):

@@ -54,7 +54,7 @@ class TopicRead(SQLModel):
     last_activity_at: Optional[datetime]
     last_thread_id: Optional[UUID]
 
-
+    last_poster_username: Optional[str]
 
 
 # # # # # # # # # #
@@ -82,6 +82,7 @@ class ThreadRead(SQLModel):
     downvote_count: int
 
     last_activity_at: Optional[datetime]
+    last_reply_username: Optional[str] = None
 
 
 class ThreadListItem(SQLModel):
