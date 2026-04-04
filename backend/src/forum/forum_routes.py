@@ -346,12 +346,12 @@ async def delete_reply(
 @router.post("/replies/{reply_id}/vote", response_model=VoteResult)
 async def vote_reply(
     reply_id: UUID,
-    is_upvote: bool,
+    payload: VotePayload,
     session: SessionDependency,
     token_details: dict = access_token_bearer,
 ):
     """
-    POST /forum/replies/{reply_id}/vote  { is_upvote: bool }
+    POST /forum/replies/{reply_id}/vote  { payload: VotePayload }
     Same toggle/flip logic as thread votes.
     Returns updated counts + resulting vote state.
     """
@@ -363,7 +363,7 @@ async def vote_reply(
         raise HTTPException(status_code=404, detail="Reply not found")
 
     user_id = UUID(token_details["user"]["user_id"])
-    return await service.vote_reply(reply, user_id, is_upvote, session)
+    return await service.vote_reply(reply, user_id, payload.is_upvote, session)
 
 
 
