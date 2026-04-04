@@ -127,17 +127,29 @@
   letter-spacing: 0.05em;
 }
 
+/* --- Activity column -------------------------------------- */
+
 .topic-row-activity {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.2rem;
-  min-width: 72px;
+  gap: 0.15rem;
+  min-width: 80px;
 }
 
 .topic-activity-time {
   font-size: 0.8rem;
   color: #6b7280;
+  white-space: nowrap;
+}
+
+.topic-activity-user {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
 }
 
 .topic-locked-badge {
@@ -165,4 +177,5 @@
 @media (max-width: 600px) {
   .topic-row-stat { display: none; }
   .topic-row-right { gap: 0.75rem; }
+  .topic-activity-user { display: none; }
 }

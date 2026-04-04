@@ -14,7 +14,6 @@ import type { ThreadRead, ReplyRead, PaginatedReplies } from "../types/forumType
 interface UseThreadPageResult {
   thread: ThreadRead | null
   replies: ReplyRead[]
-  // parent cache: reply_id → parent ReplyRead, for "replying to" banners
   parentCache: Record<string, ReplyRead>
   page: number
   pages: number
@@ -22,28 +21,27 @@ interface UseThreadPageResult {
   loading: boolean
   repliesLoading: boolean
   error: string | null
-  // reply box state
   replyBody: string
   setReplyBody: (v: string) => void
-  replyingTo: ReplyRead | null        // the reply being replied to, if any
+  replyingTo: ReplyRead | null
   setReplyingTo: (r: ReplyRead | null) => void
-  // editing state
   editingReplyId: string | null
   editBody: string
   setEditBody: (v: string) => void
   startEdit: (reply: ReplyRead) => void
   cancelEdit: () => void
-  // actions
   goToPage: (p: number) => void
   submitReply: () => Promise<void>
   submitEdit: (replyId: string) => Promise<void>
   submitDelete: (replyId: string) => Promise<void>
   submitThreadVote: (isUpvote: boolean) => Promise<void>
   submitReplyVote: (replyId: string, isUpvote: boolean) => Promise<void>
-  // thread vote state
-  threadVote: boolean | null       // current user's vote on the thread
+  threadVote: boolean | null
+  replyVotes: Record<string, boolean | null>
   submitError: string | null
 }
+
+const PAGE_SIZE = 15;
 
 export function useThreadPage(threadId: string): UseThreadPageResult {
   const [thread, setThread] = useState<ThreadRead | null>(null);
@@ -56,20 +54,17 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
   const [repliesLoading, setRepliesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // reply box
   const [replyBody, setReplyBody] = useState("");
   const [replyingTo, setReplyingTo] = useState<ReplyRead | null>(null);
 
-  // editing
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
 
   const [submitError, setSubmitError] = useState<string | null>(null);
-
-  // thread vote — initialised from thread data once loaded
   const [threadVote, setThreadVote] = useState<boolean | null>(null);
+  const [replyVotes, setReplyVotes] = useState<Record<string, boolean | null>>({});
 
-  // Fetch thread once
+  // Fetch thread once on mount
   useEffect(() => {
     async function fetchThread() {
       setLoading(true);
@@ -86,7 +81,6 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     fetchThread();
   }, [threadId]);
 
-  // Extracted fetch function so both useEffect and submitReply can call it
   const fetchReplies = useCallback(async (targetPage: number) => {
     setRepliesLoading(true);
     const res = await getReplies(threadId, targetPage);
@@ -99,7 +93,7 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     setPages(data.pages);
     setTotal(data.total);
 
-    // Fetch any parents not on the current page
+    // Fetch any parents not present on this page
     const pageReplyIds = new Set(data.items.map((r) => r.reply_id));
     const toFetch = data.items.filter(
       (r) =>
@@ -124,7 +118,6 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     setRepliesLoading(false);
   }, [threadId, parentCache]);
 
-  // Fetch replies whenever page changes (and thread is done loading)
   useEffect(() => {
     if (!loading) fetchReplies(page);
   }, [page, loading]);
@@ -155,16 +148,15 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     setReplyBody("");
     setReplyingTo(null);
 
-    // Work out which page the new reply landed on
+    // Backend always uses PAGE_SIZE=15, so offset math is consistent across pages.
     const newTotal = total + 1;
-    const pageSize = page === 1 ? 14 : 15;
-    const newLastPage = Math.ceil(newTotal / pageSize);
+    const newLastPage = Math.ceil(newTotal / PAGE_SIZE);
 
     if (newLastPage === page) {
-      // Still on the last page — setPage would be a no-op so call fetchReplies directly
+      // Still on the last page — setPage is a no-op so call fetchReplies directly
       await fetchReplies(page);
     } else {
-      // Overflowed onto a new page — setPage triggers the useEffect which fetches
+      // Overflowed onto a new page — triggers useEffect to fetch
       setPage(newLastPage);
     }
   }, [replyBody, replyingTo, threadId, total, page, fetchReplies]);
@@ -178,10 +170,11 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
         setSubmitError(res.error ?? "Failed to update reply");
         return;
       }
-      // Update reply in local state without a full refetch
       setReplies((prev) =>
         prev.map((r) =>
-          r.reply_id === replyId ? { ...r, body: editBody.trim(), updated_at: new Date().toISOString() } : r,
+          r.reply_id === replyId
+            ? { ...r, body: editBody.trim(), updated_at: new Date().toISOString() }
+            : r,
         ),
       );
       cancelEdit();
@@ -196,7 +189,6 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
       setSubmitError(res.error ?? "Failed to delete reply");
       return;
     }
-    // Mark as deleted locally — matches the soft-delete pattern on the backend
     setReplies((prev) =>
       prev.map((r) =>
         r.reply_id === replyId ? { ...r, is_deleted: true, body: "[deleted]" } : r,
@@ -208,7 +200,6 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     if (!thread) return;
     const res = await voteThread(threadId, { is_upvote: isUpvote });
     if (!res.ok || !res.data) return;
-    // Update thread counts and local vote state in place
     setThread((prev) =>
       prev
         ? {
@@ -235,6 +226,7 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
           : r,
       ),
     );
+    setReplyVotes((prev) => ({ ...prev, [replyId]: res.data!.user_vote }));
   }, []);
 
   return {
@@ -263,6 +255,7 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     submitThreadVote,
     submitReplyVote,
     threadVote,
+    replyVotes,
     submitError,
   };
 }

@@ -15,10 +15,8 @@ function PageNav({
 }) {
   if (pages <= 1) return <span className="topic-page-single">Page 1</span>;
 
-  // Show up to 2 pages in either direction, plus always show last page
   const range: (number | "...")[] = [];
   const add = new Set<number>();
-
   for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) add.add(i);
   add.add(pages);
 
@@ -31,13 +29,12 @@ function PageNav({
 
   return (
     <div className="topic-page-nav">
-      <button
-        className="page-btn"
-        onClick={() => goToPage(page - 1)}
-        disabled={page <= 1}
-      >
-        ← Prev
-      </button>
+      {/* Hidden (not just disabled) when on page 1 */}
+      {page > 1 && (
+        <button className="page-btn" onClick={() => goToPage(page - 1)}>
+          ← Prev
+        </button>
+      )}
 
       {range.map((item, i) =>
         item === "..." ? (
@@ -53,13 +50,12 @@ function PageNav({
         ),
       )}
 
-      <button
-        className="page-btn"
-        onClick={() => goToPage(page + 1)}
-        disabled={page >= pages}
-      >
-        Next →
-      </button>
+      {/* Hidden when on last page */}
+      {page < pages && (
+        <button className="page-btn" onClick={() => goToPage(page + 1)}>
+          Next →
+        </button>
+      )}
     </div>
   );
 }
@@ -108,7 +104,6 @@ export default function TopicPage() {
 
         {error && <p className="topic-error">{error}</p>}
 
-        {/* Thread list */}
         {loading ? (
           <p className="topic-loading">Loading...</p>
         ) : (

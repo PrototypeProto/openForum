@@ -15,6 +15,9 @@ interface ReplyCardProps {
   onReplyTo: (r: ReplyRead) => void
   onDelete: (replyId: string) => void
   onVote: (replyId: string, isUpvote: boolean) => void
+  // The current user's vote on this specific reply.
+  // true = upvoted, false = downvoted, null = no vote.
+  userVote: boolean | null
 }
 
 function formatDate(iso: string): string {
@@ -41,12 +44,10 @@ export default function ReplyCard({
   onReplyTo,
   onDelete,
   onVote,
+  userVote,
 }: ReplyCardProps) {
   const isEditing = editingReplyId === reply.reply_id;
   const isOwn = currentUserId === reply.author_id;
-
-  // Resolve the parent for the "replying to" banner.
-  // Parent is either on the same page (in the replies list) or fetched into parentCache.
   const showParentBanner = reply.parent_reply_id !== null && parentReply !== null;
 
   return (
@@ -76,7 +77,9 @@ export default function ReplyCard({
           <div className="reply-parent-banner">
             <span className="reply-parent-label">↩ replying to {parentReply!.author_username}</span>
             <p className="reply-parent-body">
-              {parentReply!.is_deleted ? "[deleted]" : parentReply!.body.slice(0, 120) + (parentReply!.body.length > 120 ? "…" : "")}
+              {parentReply!.is_deleted
+                ? "[deleted]"
+                : parentReply!.body.slice(0, 120) + (parentReply!.body.length > 120 ? "…" : "")}
             </p>
           </div>
         )}
@@ -110,13 +113,13 @@ export default function ReplyCard({
           <div className="reply-card-actions">
             <div className="reply-vote-group">
               <button
-                className={`reply-vote-btn${reply.upvote_count > reply.downvote_count ? " reply-vote-btn--up-active" : ""}`}
+                className={`reply-vote-btn${userVote === true ? " reply-vote-btn--up-active" : ""}`}
                 aria-label="upvote"
                 onClick={() => onVote(reply.reply_id, true)}
               >▲</button>
               <span className="reply-vote-count">{reply.upvote_count - reply.downvote_count}</span>
               <button
-                className={`reply-vote-btn${reply.downvote_count > reply.upvote_count ? " reply-vote-btn--down-active" : ""}`}
+                className={`reply-vote-btn${userVote === false ? " reply-vote-btn--down-active" : ""}`}
                 aria-label="downvote"
                 onClick={() => onVote(reply.reply_id, false)}
               >▼</button>

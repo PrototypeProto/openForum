@@ -20,6 +20,9 @@ interface ThreadCardProps {
 
 export default function ThreadCard({ thread }: ThreadCardProps) {
   const navigate = useNavigate();
+  const netVotes = thread.upvote_count - thread.downvote_count;
+
+
 
   return (
     <div
@@ -46,7 +49,9 @@ export default function ThreadCard({ thread }: ThreadCardProps) {
             <span className="thread-stat-label">replies</span>
           </div>
           <div className="thread-stat">
-            <span className="thread-stat-value">{thread.upvote_count}</span>
+            <span className={`thread-stat-value${netVotes > 0 ? " thread-stat--positive" : netVotes < 0 ? " thread-stat--negative" : ""}`}>
+              {netVotes > 0 ? `+${netVotes}` : netVotes}
+            </span>
             <span className="thread-stat-label">votes</span>
           </div>
         </div>
@@ -54,10 +59,12 @@ export default function ThreadCard({ thread }: ThreadCardProps) {
           <span className="thread-activity-time">
             {formatActivity(thread.last_activity_at)}
           </span>
-          {thread.last_reply_username && (
+          {thread.last_reply_username ? (
             <span className="thread-activity-user">
               by {thread.last_reply_username}
             </span>
+          ) : (
+            <span className="thread-activity-none">no recent replies</span>
           )}
         </div>
       </div>

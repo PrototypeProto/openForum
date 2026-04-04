@@ -38,6 +38,7 @@ function TopicRow({ topic }: { topic: Topic }) {
           )}
         </div>
       </div>
+
       <div className="topic-row-right">
         <div className="topic-row-stat">
           <span className="topic-stat-value">{topic.thread_count}</span>
@@ -52,6 +53,11 @@ function TopicRow({ topic }: { topic: Topic }) {
           <span className="topic-activity-time">
             {formatActivity(topic.last_activity_at)}
           </span>
+          {topic.last_poster_username && (
+            <span className="topic-activity-user">
+              by {topic.last_poster_username}
+            </span>
+          )}
         </div>
       </div>
     </div>

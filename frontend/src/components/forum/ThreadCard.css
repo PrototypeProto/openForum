@@ -103,6 +103,10 @@
   color: #111827;
 }
 
+/* Net vote colour modifiers */
+.thread-stat--positive { color: #2563eb; }
+.thread-stat--negative { color: #dc2626; }
+
 .thread-stat-label {
   font-size: 0.7rem;
   color: #9ca3af;
@@ -135,10 +139,18 @@
   max-width: 100px;
 }
 
+.thread-activity-none {
+  font-size: 0.72rem;
+  color: #d1d5db;
+  font-style: italic;
+  white-space: nowrap;
+}
+
 /* --- Responsive ------------------------------------------- */
 
 @media (max-width: 600px) {
   .thread-card-stats { display: none; }
   .thread-card-right { gap: 0.75rem; }
   .thread-activity-user { display: none; }
+  .thread-activity-none { display: none; }
 }

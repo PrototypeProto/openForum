@@ -42,9 +42,13 @@ function PageNav({
 
   return (
     <div className="thread-page-nav">
-      <button className="page-btn" onClick={() => goToPage(page - 1)} disabled={page <= 1}>
-        ← Prev
-      </button>
+      {/* Completely hidden when on page 1 */}
+      {page > 1 && (
+        <button className="page-btn" onClick={() => goToPage(page - 1)}>
+          ← Prev
+        </button>
+      )}
+
       {range.map((item, i) =>
         item === "..." ? (
           <span key={`ellipsis-${i}`} className="page-ellipsis">…</span>
@@ -58,9 +62,13 @@ function PageNav({
           </button>
         ),
       )}
-      <button className="page-btn" onClick={() => goToPage(page + 1)} disabled={page >= pages}>
-        Next →
-      </button>
+
+      {/* Completely hidden on last page */}
+      {page < pages && (
+        <button className="page-btn" onClick={() => goToPage(page + 1)}>
+          Next →
+        </button>
+      )}
     </div>
   );
 }
@@ -95,6 +103,7 @@ export default function ThreadPage() {
     submitThreadVote,
     submitReplyVote,
     threadVote,
+    replyVotes,
     submitError,
   } = useThreadPage(threadId ?? "");
 
@@ -120,13 +129,35 @@ export default function ThreadPage() {
     );
   }
 
-  // Resolve the parent for a reply: check the current page first, then fall back to cache
   function resolveParent(reply: ReplyRead): ReplyRead | null {
     if (!reply.parent_reply_id) return null;
     const onPage = replies.find((r) => r.reply_id === reply.parent_reply_id);
     if (onPage) return onPage;
     return parentCache[reply.parent_reply_id] ?? null;
   }
+
+  function scrollToReplyBox() {
+    document.getElementById("reply-box")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  // Synthetic OP card built from thread data.
+  // upvote_count/downvote_count are taken from the thread state so they stay
+  // in sync after the user votes on the thread.
+  const opCard: ReplyRead = {
+    reply_id: thread.thread_id,
+    thread_id: thread.thread_id,
+    author_id: thread.author_id,
+    author_username: thread.author_username,
+    parent_reply_id: null,
+    parent_author_username: null,
+    body: thread.body,
+    is_deleted: thread.is_deleted,
+    created_at: thread.created_at,
+    updated_at: thread.updated_at,
+    reply_number: 1,
+    upvote_count: thread.upvote_count,
+    downvote_count: thread.downvote_count,
+  };
 
   return (
     <>
@@ -152,20 +183,6 @@ export default function ThreadPage() {
             <span className="thread-header-dot">·</span>
             <span>{thread.reply_count} {thread.reply_count === 1 ? "reply" : "replies"}</span>
           </div>
-          {/* Thread vote */}
-          <div className="thread-vote-group">
-            <button
-              className={`thread-vote-btn${threadVote === true ? " thread-vote-btn--up-active" : ""}`}
-              aria-label="upvote thread"
-              onClick={() => submitThreadVote(true)}
-            >▲</button>
-            <span className="thread-vote-count">{thread.upvote_count - thread.downvote_count}</span>
-            <button
-              className={`thread-vote-btn${threadVote === false ? " thread-vote-btn--down-active" : ""}`}
-              aria-label="downvote thread"
-              onClick={() => submitThreadVote(false)}
-            >▼</button>
-          </div>
         </div>
 
         {/* Reply list */}
@@ -173,6 +190,28 @@ export default function ThreadPage() {
           <p className="thread-loading">Loading replies…</p>
         ) : (
           <div className="thread-reply-list">
+
+            {/* OP body — rendered as the first reply card, only on page 1 */}
+            {page === 1 && (
+              <ReplyCard
+                reply={opCard}
+                isOP={true}
+                currentUserId={authData?.user_id ?? null}
+                parentReply={null}
+                editingReplyId={editingReplyId}
+                editBody={editBody}
+                onSetEditBody={setEditBody}
+                onStartEdit={startEdit}
+                onCancelEdit={cancelEdit}
+                onSubmitEdit={submitEdit}
+                onReplyTo={(r) => { setReplyingTo(r); scrollToReplyBox(); }}
+                onDelete={() => {}}
+                onVote={(_id, isUpvote) => submitThreadVote(isUpvote)}
+                userVote={threadVote}
+              />
+            )}
+
+            {/* Paginated replies */}
             {replies.map((reply) => (
               <ReplyCard
                 key={reply.reply_id}
@@ -186,14 +225,13 @@ export default function ThreadPage() {
                 onStartEdit={startEdit}
                 onCancelEdit={cancelEdit}
                 onSubmitEdit={submitEdit}
-                onReplyTo={(r) => {
-                  setReplyingTo(r);
-                  document.getElementById("reply-box")?.scrollIntoView({ behavior: "smooth" });
-                }}
+                onReplyTo={(r) => { setReplyingTo(r); scrollToReplyBox(); }}
                 onDelete={submitDelete}
                 onVote={submitReplyVote}
+                userVote={replyVotes[reply.reply_id] ?? null}
               />
             ))}
+
           </div>
         )}
 
