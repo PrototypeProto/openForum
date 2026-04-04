@@ -87,3 +87,6 @@ temp/
 frontend/.vite/*
 frontend/.vite/
 backend/compose.yaml
+backend/src/forum/unused_routes.py
+.gitignore
+a.txt
