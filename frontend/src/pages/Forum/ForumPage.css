@@ -1,0 +1,39 @@
+/* ============================================================
+   ForumPage.css
+   ============================================================ */
+
+.forum-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.forum-heading {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.forum-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.forum-error {
+  color: #dc2626;
+  font-size: 0.9rem;
+}
+
+.forum-loading,
+.forum-empty {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .forum-page { padding: 2rem 1rem; }
+}

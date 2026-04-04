@@ -1,0 +1,104 @@
+/* ============================================================
+   ReplyBox.css
+   ============================================================ */
+
+.reply-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.reply-box--locked {
+  padding: 1rem 1.25rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+  background: #f9fafb;
+}
+
+/* --- Replying-to banner ----------------------------------- */
+
+.reply-box-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.82rem;
+  color: #374151;
+}
+
+.reply-box-clear-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  padding: 0 0.25rem;
+  line-height: 1;
+}
+
+.reply-box-clear-btn:hover {
+  color: #374151;
+}
+
+/* --- Textarea --------------------------------------------- */
+
+.reply-box-textarea {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+  min-height: 100px;
+}
+
+.reply-box-textarea:focus {
+  outline: none;
+  background: #fafafa;
+}
+
+/* --- Error ------------------------------------------------ */
+
+.reply-box-error {
+  padding: 0.4rem 1rem 0;
+  font-size: 0.8rem;
+  color: #dc2626;
+  margin: 0;
+}
+
+/* --- Footer ----------------------------------------------- */
+
+.reply-box-footer {
+  padding: 0.65rem 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.reply-box-submit {
+  padding: 0.45rem 1.2rem;
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.reply-box-submit:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.reply-box-submit:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

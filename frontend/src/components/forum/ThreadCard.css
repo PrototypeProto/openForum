@@ -1,0 +1,144 @@
+/* ============================================================
+   ThreadCard.css
+   ============================================================ */
+
+.thread-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  gap: 1rem;
+}
+
+.thread-card:last-child {
+  border-bottom: none;
+}
+
+.thread-card:hover {
+  background: #f9fafb;
+}
+
+.thread-card:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: -2px;
+}
+
+.thread-card--pinned {
+  background: #fefce8;
+}
+
+.thread-card--pinned:hover {
+  background: #fef9c3;
+}
+
+/* --- Main (left) ------------------------------------------ */
+
+.thread-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.thread-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.thread-pin-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.thread-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-card-author {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+/* --- Right side ------------------------------------------- */
+
+.thread-card-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-shrink: 0;
+}
+
+.thread-card-stats {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.thread-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 40px;
+}
+
+.thread-stat-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.thread-stat-label {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --- Activity --------------------------------------------- */
+
+.thread-card-activity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+  min-width: 80px;
+}
+
+.thread-activity-time {
+  font-size: 0.8rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.thread-activity-user {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+/* --- Responsive ------------------------------------------- */
+
+@media (max-width: 600px) {
+  .thread-card-stats { display: none; }
+  .thread-card-right { gap: 0.75rem; }
+  .thread-activity-user { display: none; }
+}

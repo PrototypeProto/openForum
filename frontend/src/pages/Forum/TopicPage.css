@@ -1,0 +1,189 @@
+/* ============================================================
+   TopicPage.css
+   ============================================================ */
+
+.topic-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 2rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* --- Breadcrumb ------------------------------------------- */
+
+.topic-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.topic-back-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  color: #6366f1;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.topic-back-btn:hover {
+  text-decoration: underline;
+}
+
+.topic-breadcrumb-sep {
+  color: #d1d5db;
+}
+
+.topic-breadcrumb-name {
+  font-weight: 500;
+  color: #374151;
+}
+
+/* --- Header ----------------------------------------------- */
+
+.topic-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.topic-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.topic-header-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.topic-header-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.2rem;
+  color: #111827;
+}
+
+.topic-header-desc {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.topic-header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.topic-locked-badge {
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --- Thread list ------------------------------------------ */
+
+.topic-thread-list {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.topic-empty {
+  padding: 1.5rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* --- Footer (pagination) ---------------------------------- */
+
+.topic-footer {
+  display: flex;
+  justify-content: center;
+}
+
+.topic-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.topic-page-single {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.page-btn {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: #374151;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.page-btn--active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #fff;
+  font-weight: 600;
+}
+
+.page-btn--active:hover {
+  background: #4f46e5;
+}
+
+.page-ellipsis {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  padding: 0 0.2rem;
+}
+
+/* --- State messages --------------------------------------- */
+
+.topic-error  { color: #dc2626; font-size: 0.9rem; }
+.topic-loading { color: #6b7280; font-size: 0.9rem; }
+
+/* --- Responsive ------------------------------------------- */
+
+@media (max-width: 600px) {
+  .topic-page { padding: 1.5rem 1rem 2rem; }
+  .topic-header { flex-direction: column; gap: 0.5rem; }
+  .topic-header-meta { align-items: flex-start; }
+}

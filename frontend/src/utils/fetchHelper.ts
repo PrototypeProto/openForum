@@ -33,6 +33,50 @@ export async function postJSON<T>(
   };
 }
 
+export async function patchJSON<T>(
+  url: string,
+  body: unknown,
+): Promise<APIResponse<T>> {
+  const res = await fetch(url, {
+    method: "PATCH",
+    ...BASE_OPTIONS,
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  return {
+    data: res.ok ? (data as T) : null,
+    ok: res.ok,
+    statusCode: res.status,
+    error: res.ok
+      ? null
+      : (data.detail?.[0]?.msg ??
+        data.detail ??
+        "Failed to retrieve error message"),
+  };
+}
+
+export async function deleteReq(url: string): Promise<APIResponse<null>> {
+  const res = await fetch(url, {
+    method: "DELETE",
+    ...BASE_OPTIONS,
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  return {
+    data: null,
+    ok: res.ok,
+    statusCode: res.status,
+    error: res.ok
+      ? null
+      : (data.detail?.[0]?.msg ??
+        data.detail ??
+        "Failed to retrieve error message"),
+  };
+}
+
 export async function getJSON<T>(
   url: string,
   params?: Record<string, unknown>,

@@ -7,6 +7,8 @@ import ErrorPage from "./pages/Error/ErrorPage";
 import LogoutPage from "./pages/Logout/Logout";
 import PortfolioPage from "./pages/Portfolio/PortfolioPage";
 import ForumPage from "./pages/Forum/ForumPage";
+import TopicPage from "./pages/Forum/TopicPage";
+import ThreadPage from "./pages/Thread/ThreadPage";
 import MediaPage from "./pages/Media/MediaPage";
 import FileSharePage from "./pages/FileShare/FileSharePage";
 import AboutPage from "./pages/About/AboutPage";
@@ -35,15 +37,15 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      {/*<Route path="/admin" element={
-    <AdminRoute><AdminDashboard /></AdminRoute>
-  }/>*/}
 
-      {/* <Route path="/profile" element={<ProfilePage />} /> */}
+      {/* <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} /> */}
+
       <Route path="/error" element={<ErrorPage />} />
       <Route path="/logged-out" element={<LogoutPage />} />
       <Route path="/portfolio" element={<PortfolioPage />} />
       <Route path="/forum" element={<ForumPage />} />
+      <Route path="/forum/:topicName" element={<TopicPage />} />
+      <Route path="/thread/:threadId" element={<ThreadPage />} />
       <Route path="/media" element={<MediaPage />} />
       <Route path="/file-share" element={<FileSharePage />} />
       <Route
