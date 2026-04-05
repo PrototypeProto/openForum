@@ -12,6 +12,7 @@ from src.db.models import PendingUser
 from src.db.roles_redis import set_user_role, get_user_role
 from src.db.users_redis import add_registered_user, get_user, remove_user
 from src.auth.service import AuthService
+from src.db.read_models import *
 
 auth_service = AuthService()
 
@@ -22,13 +23,24 @@ class AdminService:
     Only ADMINS may use this
     """
 
-    # # # # # # # # # # # # # # # # # # # # # # # # 
+    # # # # # # # # # # # # # # # # # # # # # # # #
     #   Core Methods
-    # # # # # # # # # # # # # # # # # # # # # # # # 
-    async def get_pending_users(self, session: AsyncSession) -> List[Tuple[UUID, str]]:
-        query = select(PendingUser.user_id, PendingUser.username)
-        res = await session.exec(query)
-        return res.all()
+    # # # # # # # # # # # # # # # # # # # # # # # #
+    async def get_pending_users(self, session: AsyncSession) -> List[PendingUserRead]:
+        """Returns full detail of all pending users for the admin approval view."""
+        result = await session.exec(select(PendingUser).order_by(PendingUser.join_date.asc()))
+        rows = result.all()
+        return [
+            PendingUserRead(
+                user_id=r.user_id,
+                username=r.username,
+                email=r.email,
+                nickname=r.nickname,
+                join_date=r.join_date,
+                request=r.request,
+            )
+            for r in rows
+        ]
 
     async def update_user_privilege(
         self, username: str, role: MemberRoleEnum, session: AsyncSession
@@ -73,13 +85,68 @@ class AdminService:
         await session.refresh(user)
         return user
 
-    # # # # # # # # # # # # # # # # # # # # # # # # 
+    async def reject_pending_user(
+        self, username: str, session: AsyncSession
+    ) -> RejectedUserRead:
+        """
+        Copies the pending_user row to rejected_user, then deletes the pending_user entry.
+        Returns the created RejectedUser record.
+        """
+        pending_user: PendingUser = (
+            await auth_service.get_username_from_user_pending_table(
+                username, session
+            )
+        )
+        if pending_user is None:
+            return None
+
+        rejected = RejectedUser(
+            user_id=pending_user.user_id,
+            username=pending_user.username,
+            email=pending_user.email,
+            password_hash=pending_user.password_hash,
+            nickname=pending_user.nickname,
+            join_date=pending_user.join_date,
+            request=pending_user.request,
+            rejected_date=date.today(),
+        )
+
+        stmt = delete(PendingUser).where(
+            PendingUser.user_id == pending_user.user_id
+        )
+        res = await session.exec(stmt)
+
+        if res.rowcount == 0:
+            await session.rollback()
+            raise Exception("Failed to delete pending user during rejection")
+
+        session.add(rejected)
+        await session.commit()
+        await session.refresh(rejected)
+
+        return RejectedUserRead(
+            user_id=rejected.user_id,
+            username=rejected.username,
+            email=rejected.email,
+            nickname=rejected.nickname,
+            join_date=rejected.join_date,
+            request=rejected.request,
+            rejected_date=rejected.rejected_date,
+        )
+
+    # # # # # # # # # # # # # # # # # # # # # # # #
     # Validation Methods
-    # # # # # # # # # # # # # # # # # # # # # # # # 
+    # # # # # # # # # # # # # # # # # # # # # # # #
     async def verify_admin(self, token_details: dict, session: AsyncSession) -> bool:
         # check if current user is admin
         if token_details is None or token_details.get("user") is None:
             return False
+
+        print(token_details)
+
+        if not await self.is_verified_user(token_details.get('user').get('username'), session):
+            return False # TODO: return Exception/Error (later when creating custom errors)
+        print("stop")
         # Check if user is authorized to exec admin priv
         if not await self.is_user_admin(
             token_details.get("user").get("username"), session

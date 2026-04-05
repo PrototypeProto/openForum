@@ -50,6 +50,7 @@ async def list_threads(
     topic_id: UUID,
     session: SessionDependency,
     page: int = Query(1, ge=1),
+    token_details: dict = access_token_bearer
 ):
     """
     GET /forum/topics/{topic_id}/threads?page=1
@@ -58,6 +59,9 @@ async def list_threads(
     page 1 → page_size 14
     page 2+ → page_size 15
     """
+    if not await auth_service.is_valid_user_token(token_details, session):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid permissions")
+
     page_size = 15
 
     topic = await service.get_topic(topic_id, session)
@@ -67,13 +71,16 @@ async def list_threads(
     return await service.get_threads(topic_id, page, page_size, session)
 
 
-@router.get("/threads/{thread_id}", response_model=ThreadRead)
-async def get_thread(thread_id: UUID, session: SessionDependency):
+@router.get("/threads/{thread_id}", response_model=ThreadWithVote)
+async def get_thread(thread_id: UUID, session: SessionDependency, token_details: dict = access_token_bearer):
     """
     GET /forum/threads/{thread_id}
     Returns full thread detail with author_username resolved.
     """
-    thread = await service.get_thread(thread_id, session)
+    if not await auth_service.is_valid_user_token(token_details, session):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid permissions")
+
+    thread = await service.get_thread(thread_id, token_details['user']['user_id'], session)
     if not thread or thread.is_deleted:
         raise HTTPException(status_code=404, detail="Thread not found")
     return thread
@@ -137,7 +144,7 @@ async def update_thread(
     if any(f in payload.model_dump(exclude_unset=True) for f in mod_only_fields) and not is_admin:
         raise HTTPException(status_code=403, detail="Only moderators can pin or lock threads")
 
-    return await service.update_thread(thread, payload, session)
+    return await service.update_thread(thread, token_details['user']['user_id'], payload, session)
 
 
 @router.delete("/threads/{thread_id}", status_code=status.HTTP_204_NO_CONTENT)
