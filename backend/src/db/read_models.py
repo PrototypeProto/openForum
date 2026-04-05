@@ -203,3 +203,16 @@ class VoteResult(SQLModel):
     upvote_count: int
     downvote_count: int
     user_vote: Optional[bool]  # resulting vote state after the action
+
+
+# # # # # # # # # #
+# Admin
+# # # # # # # # # #
+class RejectedUserRead(SQLModel):
+    user_id: UUID
+    username: str
+    email: Optional[str]
+    nickname: Optional[str]
+    join_date: date
+    request: Optional[str]
+    rejected_date: date

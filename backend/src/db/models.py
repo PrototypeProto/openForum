@@ -162,6 +162,61 @@ class User(SQLModel, table=True):
         return f"<User: `{self.user_id}` is `{self.nickname}` and has the role `{self.role}`"
 
 
+class RejectedUser(SQLModel, table=True):
+    """
+    The user registers with their own information, and db automatically assigns an id from UserID table.
+    Upon valid parameters, data sent to server will first generate a user_id then insert into pending_user table.
+    """
+
+    __tablename__ = "rejected_user"
+
+    user_id: UUID = Field(foreign_key="user_id.id", primary_key=True, nullable=False)
+
+    username: str = Field(
+        sa_column=Column(
+            postgres.VARCHAR,
+            unique=True,
+            index=True,
+            nullable=False,
+        ),
+        min_length=2,
+        max_length=32,
+    )
+    email: Optional[str] = Field(
+        sa_column=Column(
+            postgres.VARCHAR,
+            unique=True,
+            index=True,
+            nullable=True,
+        ),
+        max_length=64,
+    )
+    password_hash: str = Field(
+        sa_column=Column(postgres.VARCHAR, nullable=False), exclude=True
+    )
+
+    nickname: Optional[str] = Field(min_length=2, index=False, nullable=True)
+    join_date: Optional[date] = Field(
+        sa_column=Column(
+            postgres.DATE,
+            server_default=func.current_date(),
+            index=False,
+            nullable=False,
+        ),
+        default=None,
+    )
+    request: Optional[str] = Field(nullable=True)
+    rejected_date: Optional[date] = Field(
+        sa_column=Column(
+            postgres.DATE,
+            server_default=func.current_date(),
+            index=False,
+            nullable=False,
+        ),
+        default=None,
+    )
+
+
 """##################################
     NOTE: END REGISTRATION DATA 
 ##################################"""
@@ -327,7 +382,7 @@ class Thread(SQLModel, table=True):
     last_activity_at: Optional[datetime] = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True, index=True)
     )
-    last_activity: Optional[UUID] = Field(nullable=True, default=None) # a replyid
+    last_activity: Optional[UUID] = Field(nullable=True, default=None)  # a replyid
 
 
 class ThreadVote(SQLModel, table=True):
