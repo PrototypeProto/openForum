@@ -1,5 +1,5 @@
 export interface UserStats {
-  unverified: number;
+  pending: number;
   user: number;
   vip: number;
   admin: number;

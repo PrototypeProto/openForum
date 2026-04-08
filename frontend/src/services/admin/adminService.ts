@@ -5,11 +5,11 @@ import type { PendingUserRead, RejectedUserRead, UserRead, UserStats } from "../
 import type { Role } from "../../types/userTypes";
 
 export async function getAllUsers(): Promise<APIResponse<UserRead[]>> {
-  return getJSON<UserRead[]>(API.admin.users("verified"));
+  return getJSON<UserRead[]>(API.admin.users);
 }
 
 export async function getPendingUsers(): Promise<APIResponse<PendingUserRead[]>> {
-  return getJSON<PendingUserRead[]>(API.admin.users("pending"));
+  return getJSON<PendingUserRead[]>(API.admin.pendingUsers);
 }
 
 export async function getUserStats(): Promise<APIResponse<UserStats>> {

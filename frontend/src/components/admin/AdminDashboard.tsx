@@ -56,6 +56,12 @@ function PendingRow({
 // ── Verified user row ───────────────────────────────────────
 const ROLES: Role[] = ["user", "vip", "admin"];
 
+const ROLE_COLORS: Record<Role, string> = {
+  admin: "#c9b99a",
+  vip:   "#9ab8c9",
+  user:  "var(--text-muted)",
+};
+
 function UserRow({
   user,
   onChangeRole,
@@ -77,6 +83,7 @@ function UserRow({
           <select
             className="admin-role-select"
             value={user.role}
+            style={{ color: ROLE_COLORS[user.role as Role] ?? "var(--text-muted)", borderColor: ROLE_COLORS[user.role as Role] ?? "var(--border)" }}
             onChange={(e) => onChangeRole(user.username, e.target.value as Role)}
           >
             {ROLES.map((r) => (
@@ -125,19 +132,15 @@ export default function AdminDashboard() {
       <div className="site-stats">
         <div className="count-stat">
           <span className="count-stat__label">Users</span>
-          <span className="count-stat__value">{stats ? stats.user : "—"}</span>
+          <span className="count-stat__value">{stats ? String(stats.user) : "—"}</span>
         </div>
         <div className="count-stat">
           <span className="count-stat__label">VIP</span>
-          <span className="count-stat__value">{stats ? stats.vip : "—"}</span>
+          <span className="count-stat__value">{stats ? String(stats.vip) : "—"}</span>
         </div>
         <div className="count-stat">
           <span className="count-stat__label">Admins</span>
-          <span className="count-stat__value">{stats ? stats.admin : "—"}</span>
-        </div>
-        <div className="count-stat">
-          <span className="count-stat__label">Unverified</span>
-          <span className="count-stat__value">{stats ? stats.unverified : "—"}</span>
+          <span className="count-stat__value">{stats ? String(stats.admin) : "—"}</span>
         </div>
         <div className="count-stat--divider" />
         <div className="count-stat">
