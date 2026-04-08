@@ -34,9 +34,10 @@ export const API = {
   },
 
   admin: {
-    // GET   /admin/users?approval_status=verified|pending
-    users: (status: "verified" | "pending") =>
-      `${ADMIN_URL}/users?approval_status=${status}`,
+    // GET   /admin/users
+    users: `${ADMIN_URL}/users`,
+    // GET   /admin/users/pending
+    pendingUsers: `${ADMIN_URL}/users/pending`,
     // GET   /admin/users/stats
     userStats: `${ADMIN_URL}/users/stats`,
     // PATCH /admin/users/{username}/role  body: { role }

@@ -31,31 +31,38 @@ auth_service = AuthService()
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 
-@router.get("/users", response_model=List[Union[UserDataModel, PendingUserRead]])
-async def get_users(
+@router.get("/users", response_model=List[UserRead])
+async def get_verified_users(
     session: SessionDependency,
     token_details: dict = access_token_bearer,
-    approval_status: UserTypeEnum = Query(UserTypeEnum.VERIFIED),
 ):
     """
-    GET /admin/users?approval_status=UserTypeEnum.VERIFIED
-    Lists all verified OR pending users for the admin approval panel.
-    NOTE: exclude self when modifying user values (when dealing with verified) to avoid conflicts like accidentally demoting self
+    GET /admin/users
+    Lists all verified users for the admin panel.
+    NOTE: exclude self when modifying user values to avoid conflicts like accidentally demoting self
     """
     if not await admin_service.verify_admin(token_details, session):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Insufficient permissions"
         )
+    return await admin_service.get_users(session)
 
-    users = None
-    if approval_status == UserTypeEnum.VERIFIED:
-        return await admin_service.get_users(session)
-    if approval_status == UserTypeEnum.PENDING:
-        return await admin_service.get_pending_users(session)
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail="failed to verify status"
-    )
+@router.get("/users/pending", response_model=List[PendingUserRead])
+async def get_pending_users(
+    session: SessionDependency,
+    token_details: dict = access_token_bearer,
+):
+    """
+    GET /admin/users/pending
+    Lists all pending users for the admin approval panel.
+    """
+    if not await admin_service.verify_admin(token_details, session):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Insufficient permissions"
+        )
+    return await admin_service.get_pending_users(session)
+
 
 @router.get("/users/stats", response_model=UserStats)
 async def get_users(
@@ -63,15 +70,18 @@ async def get_users(
     token_details: dict = access_token_bearer,
 ):
     if not await admin_service.verify_admin(token_details, session):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Insufficient permissions")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Insufficient permissions"
+        )
     return await admin_service.get_user_stats(session)
+
 
 @router.patch("/users/{username}/role")
 async def update_user_role(
     username: str,
     session: SessionDependency,
-    role: UpdateRoleBody,
     token_details: dict = access_token_bearer,
+    role: MemberRoleEnum = Body(..., embed=True),
 ):
     """
     Updates a verified user's site role

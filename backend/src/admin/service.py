@@ -53,10 +53,19 @@ class AdminService:
         await session.refresh(user)
         return user
 
-    async def get_users(self, session: AsyncSession) -> List[User]:
+    async def get_users(self, session: AsyncSession) -> List[UserRead]:
         query = select(User).order_by(desc(User.join_date))
         result = await session.exec(query)
-        return result.all()
+        return [
+            UserRead(
+                user_id=r.user_id,
+                username=r.username,
+                nickname=r.nickname,
+                join_date=r.join_date,
+                role=r.role,
+            )
+            for r in result.all()
+        ]
 
     async def approve_pending_user(self, username: str, session: AsyncSession) -> User:
         pending_user: PendingUser = await auth_service.get_pending_user_with_username(
@@ -145,7 +154,7 @@ class AdminService:
             await session.exec(select(func.count(PendingUser.user_id)))
         ).one()
 
-        stats = UserStats(pending=pending_count)
+        stats = UserStats(unverified=pending_count)
         for role, count in role_counts:
             if role == MemberRoleEnum.USER:
                 stats.user = count
