@@ -29,7 +29,7 @@ async def _run_cleanup() -> None:
 def start_scheduler() -> None:
     _scheduler.add_job(
         _run_cleanup,
-        trigger=IntervalTrigger(minutes=2),
+        trigger=IntervalTrigger(minutes=30),
         id="tempfs_cleanup",
         replace_existing=True,
         max_instances=1,       # prevent overlapping runs

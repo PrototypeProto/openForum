@@ -18,6 +18,7 @@ from pathlib import Path
 from src.admin.service import AdminService
 import aiofiles
 from pydantic import Field
+from src.db.read_models import PaginatedMedia
 
 REFRESH_TOKEN_EXPIRY_DAYS = 2
 

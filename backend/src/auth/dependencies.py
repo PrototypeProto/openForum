@@ -17,11 +17,11 @@ class TokenBearer(HTTPBearer):
         super().__init__(auto_error=auto_error)
 
     async def __call__(self, request: Request) -> HTTPAuthorizationCredentials | None:
-        # creds = await super().__call__(request)
         token = self.get_token(request)
 
-        # token = creds.credentials
         if not token:
+            if not self.auto_error:
+                return None
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="No token provided"
             )

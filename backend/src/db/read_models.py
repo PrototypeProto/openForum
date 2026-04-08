@@ -35,7 +35,7 @@ class UserStats(BaseModel):
     unverified: int = 0
     user: int = 0
     vip: int = 0
-    admins: int = 0
+    admin: int = 0
 
 class PaginatedMedia(SQLModel):
     items: list[str]  # filenames

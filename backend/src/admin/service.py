@@ -3,7 +3,7 @@ from src.db.models import (
     PendingUser,
 )
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, desc, update, insert, delete
+from sqlmodel import select, desc, update, insert, delete, func
 from datetime import date, datetime, timedelta
 from uuid import UUID
 from typing import List, Tuple
