@@ -125,22 +125,21 @@ export default function AdminDashboard() {
       <div className="site-stats">
         <div className="count-stat">
           <span className="count-stat__label">Users</span>
-          <span className="count-stat__value">
-            {stats ? stats.user : "—"}
-          </span>
+          <span className="count-stat__value">{stats ? stats.user : "—"}</span>
         </div>
         <div className="count-stat">
           <span className="count-stat__label">VIP</span>
-          <span className="count-stat__value">
-            {stats ? stats.vip : "—"}
-          </span>
+          <span className="count-stat__value">{stats ? stats.vip : "—"}</span>
         </div>
         <div className="count-stat">
           <span className="count-stat__label">Admins</span>
-          <span className="count-stat__value">
-            {stats ? stats.admins : "—"}
-          </span>
+          <span className="count-stat__value">{stats ? stats.admin : "—"}</span>
         </div>
+        <div className="count-stat">
+          <span className="count-stat__label">Unverified</span>
+          <span className="count-stat__value">{stats ? stats.unverified : "—"}</span>
+        </div>
+        <div className="count-stat--divider" />
         <div className="count-stat">
           <span className="count-stat__label">Pending</span>
           <span className="count-stat__value">

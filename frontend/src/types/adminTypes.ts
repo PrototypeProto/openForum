@@ -2,7 +2,7 @@ export interface UserStats {
   unverified: number;
   user: number;
   vip: number;
-  admins: number;
+  admin: number;
 }
 
 export interface UserRead {

@@ -37,8 +37,13 @@
 /* ── stats row ──────────────────────────────────────────── */
 .site-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr) 2px repeat(1, 1fr);
   border: 1px solid var(--border);
+}
+
+.count-stat--divider {
+  background: var(--border);
+  align-self: stretch;
 }
 
 .count-stat {
