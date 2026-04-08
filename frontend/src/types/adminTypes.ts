@@ -1,3 +1,10 @@
+export interface UserStats {
+  unverified: number;
+  user: number;
+  vip: number;
+  admins: number;
+}
+
 export interface UserRead {
   user_id: string
   username: string

@@ -80,11 +80,7 @@ export async function downloadFile(
   wantCompressed: boolean,
   password: string | null,
 ): Promise<string | null> {
-  const params = new URLSearchParams();
-  params.set("want_compressed", String(wantCompressed));
-  if (password) params.set("password", password);
-
-  const url = `${API.tempfs.download(fileId)}?${params.toString()}`;
+  const url = API.tempfs.download(fileId, wantCompressed, password ?? undefined);
 
   const res = await fetch(url, { credentials: "include" });
   if (!res.ok) {

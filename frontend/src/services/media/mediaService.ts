@@ -1,18 +1,12 @@
-import { getJSON, getRaw, postJSON } from "../../utils/fetchHelper";
+import { getJSON, getRaw } from "../../utils/fetchHelper";
 import { API } from "../../services/endpoints/api";
 import type { APIResponse } from "../../types/authType";
 import type { MediaListResponse } from "../../types/mediaType";
 
-export async function getMediaPageCt(): Promise<
-  APIResponse<number>
-> {
-  return getJSON<number>(API.media.pageCt);
-}
-
 export async function getMediaList(
   page: number,
 ): Promise<APIResponse<MediaListResponse>> {
-  return getJSON<MediaListResponse>(API.media.list, { page });
+  return getJSON<MediaListResponse>(API.media.list(page));
 }
 
 // Returns a blob URL you can pass directly to a <video> src

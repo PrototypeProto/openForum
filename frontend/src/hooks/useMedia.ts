@@ -1,36 +1,25 @@
 import { useState, useEffect } from "react";
-import { getMediaList, getMediaPageCt } from "../services/media/mediaService";
-import type { APIResponse } from "../types/authType";
+import { getMediaList } from "../services/media/mediaService";
 
 export function useMedia() {
   const [filenames, setFilenames] = useState<string[]>([]);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(2);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // CONSIDER OVERHAULING THIS aka implement this better
-  // const pageCtData: APIResponse<number> = await getMediaPageCt();
-
-  //   if (pageCtData.ok && pageCtData.data) {
-  //     setTotalPages(pageCtData.data); // data is number >= 0 directly
-  //   } else {
-  //     setError(pageCtData.error);
-  //   }
 
   const fetchPage = async (pageNum: number) => {
     setLoading(true);
     setError(null);
 
     const { data, ok, error } = await getMediaList(pageNum);
-    
+
     if (ok && data) {
-      setFilenames(data); // data is string[] directly
+      setFilenames(data.items);
+      setTotalPages(data.pages);
     } else {
       setError(error);
     }
-
-    
 
     setLoading(false);
   };
