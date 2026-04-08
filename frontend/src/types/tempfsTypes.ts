@@ -25,5 +25,5 @@ export interface TempFileUploadResponse {
 export interface StorageStatusRead {
   used_bytes: number
   remaining_bytes: number
-  quota_bytes: number
+  storage_cap_bytes: number
 }

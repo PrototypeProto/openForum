@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAdmin } from "../../hooks/useAdmin";
 import { useAuthContext } from "../../context/AuthContext";
-import type { UserRead, PendingUserRead } from "../../types/adminTypes";
+import { getUserStats } from "../../services/admin/adminService";
+import type { UserRead, PendingUserRead, UserStats } from "../../types/adminTypes";
 import type { Role } from "../../types/userTypes";
 import "./css/adminDashboard.css";
 
@@ -93,6 +94,7 @@ function UserRow({
 // ── Main dashboard ──────────────────────────────────────────
 export default function AdminDashboard() {
   const [currentView, setCurrentView] = useState<ViewSelection>(null);
+  const [stats, setStats] = useState<UserStats | null>(null);
   const { authData } = useAuthContext();
   const {
     users,
@@ -107,6 +109,12 @@ export default function AdminDashboard() {
     actionSuccess,
   } = useAdmin(authData?.username ?? "");
 
+  useEffect(() => {
+    getUserStats().then((res) => {
+      if (res.ok && res.data) setStats(res.data);
+    });
+  }, []);
+
   const toggle = (view: ViewSelection) =>
     setCurrentView((prev) => (prev === view ? null : view));
 
@@ -118,13 +126,19 @@ export default function AdminDashboard() {
         <div className="count-stat">
           <span className="count-stat__label">Users</span>
           <span className="count-stat__value">
-            {usersLoading ? "—" : users.length}
+            {stats ? stats.user : "—"}
+          </span>
+        </div>
+        <div className="count-stat">
+          <span className="count-stat__label">VIP</span>
+          <span className="count-stat__value">
+            {stats ? stats.vip : "—"}
           </span>
         </div>
         <div className="count-stat">
           <span className="count-stat__label">Admins</span>
           <span className="count-stat__value">
-            {usersLoading ? "—" : users.filter((u) => u.role === "admin").length}
+            {stats ? stats.admins : "—"}
           </span>
         </div>
         <div className="count-stat">

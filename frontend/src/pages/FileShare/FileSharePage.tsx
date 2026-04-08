@@ -217,7 +217,7 @@ export default function FileSharePage() {
       <div className="tfs-page">
         <h1 className="tfs-heading">Temporary File Storage</h1>
 
-        {storage && <StorageMeter used={storage.used_bytes} quota={storage.quota_bytes} />}
+        {storage && <StorageMeter used={storage.used_bytes} quota={storage.storage_cap_bytes} />}
 
         {lastUpload && (
           <div className="tfs-success">
