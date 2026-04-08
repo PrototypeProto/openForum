@@ -42,18 +42,8 @@ MEDIA_TYPES = {
 ALLOWED_MIME_TYPES = set(MEDIA_TYPES.values())
 ALLOWED_EXTENSIONS = set(MEDIA_TYPES.keys())
 
-@router.get("/pages", response_model=int)
-async def get_page_count(
-    session: SessionDependency,
-    token_details: dict = access_token_bearer):
-    if not await auth_service.is_valid_user_token(token_details, session):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid perms"
-        )
-    
-    return 2
 
-@router.get("/list")
+@router.get("/list", response_model=PaginatedMedia)
 async def list_media_page(
     session: SessionDependency,
     page: int = Query(default=1, ge=1),
@@ -63,7 +53,7 @@ async def list_media_page(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid perms"
         )
-    return await media_service.list_accessible_media(page-1, MEDIA_LIMIT)
+    return await media_service.list_accessible_media(page, MEDIA_LIMIT)
 
 
 @router.get("/{filename}")

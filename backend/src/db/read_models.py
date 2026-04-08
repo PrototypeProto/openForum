@@ -37,6 +37,13 @@ class UserStats(BaseModel):
     vip: int = 0
     admins: int = 0
 
+class PaginatedMedia(SQLModel):
+    items: list[str]  # filenames
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
 # # # # # # # # # #
 # Topics
 # # # # # # # # # #
@@ -288,3 +295,6 @@ class FileReadModel(SQLModel):
     original_filename: str
     mime_type: str
     is_compressed: bool
+
+class UpdateRoleBody(SQLModel):
+    role: MemberRoleEnum

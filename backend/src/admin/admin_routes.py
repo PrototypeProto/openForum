@@ -1,5 +1,5 @@
 from typing import Optional, Union, Annotated, List, Tuple
-from fastapi import FastAPI, Header, APIRouter, Depends, Query
+from fastapi import FastAPI, Header, APIRouter, Depends, Query, Body
 from fastapi import status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import HTTPException
@@ -66,11 +66,11 @@ async def get_users(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Insufficient permissions")
     return await admin_service.get_user_stats(session)
 
-@router.patch("/users/{username}/{role}")
+@router.patch("/users/{username}/role")
 async def update_user_role(
     username: str,
-    role: MemberRoleEnum,
     session: SessionDependency,
+    role: UpdateRoleBody,
     token_details: dict = access_token_bearer,
 ):
     """

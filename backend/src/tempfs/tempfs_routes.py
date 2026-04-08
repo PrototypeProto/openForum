@@ -128,7 +128,7 @@ async def get_storage_status(
 
 
 # Public file info (no auth required)
-@router.get("/info/{file_id}", response_model=TempFilePublicInfo)
+@router.get("/files/{file_id}", response_model=TempFilePublicInfo)
 async def get_file_info(file_id: UUID, session: SessionDependency, token_details: dict = optional_token_bearer):
     """
     GET /tempfs/info/{file_id}
@@ -144,7 +144,7 @@ async def get_file_info(file_id: UUID, session: SessionDependency, token_details
 
 
 # Download
-@router.get("/download/{file_id}")
+@router.get("/files/{file_id}/content")
 async def download_file(
     file_id: UUID,
     session: SessionDependency,

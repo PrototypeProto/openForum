@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
-    MEDIA_DIR: str
+    MEDIA_DIR: str = "shared_media"
     TEMPFS_DIR: str = "tempfs_storage"
     LOGS_DIR: str = "logs"
     ALLOWED_ORIGINS: str = "http://localhost:5173"

@@ -133,7 +133,7 @@ async def login_user(
     )
 
 
-@router.get("/refresh_token")
+@router.post("/refresh_token")
 async def get_new_access_token(token_details: dict = Depends(RefreshTokenBearer())):
     expiry_timestamp = token_details["exp"]
 
@@ -152,7 +152,7 @@ async def get_current_user(user=Depends(get_current_user_by_username)):
     return user
 
 
-@router.get("/logout")
+@router.post("/logout")
 async def revoke_token(token_details: dict = access_token_bearer):
     if token_details is None:
         raise HTTPException(
