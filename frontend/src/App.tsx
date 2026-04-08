@@ -11,6 +11,7 @@ import TopicPage from "./pages/Forum/TopicPage";
 import ThreadPage from "./pages/Thread/ThreadPage";
 import MediaPage from "./pages/Media/MediaPage";
 import FileSharePage from "./pages/FileShare/FileSharePage";
+import DownloadPage from "./pages/FileShare/DownloadPage";
 import AboutPage from "./pages/About/AboutPage";
 import AccountVerificationPage from "./pages/LoginSignup/AccountVerificationPage";
 import { GuestRoute } from "./guards/GuestRoute";
@@ -48,6 +49,7 @@ export default function App() {
       <Route path="/thread/:threadId" element={<ThreadPage />} />
       <Route path="/media" element={<MediaPage />} />
       <Route path="/file-share" element={<FileSharePage />} />
+      <Route path="/file-share/download/:fileId" element={<DownloadPage />} />
       <Route
         path="/account-pending-approval"
         element={<AccountVerificationPage />}

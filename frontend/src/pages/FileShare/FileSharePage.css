@@ -1,0 +1,304 @@
+/* ============================================================
+   FileSharePage.css — Temporary File Storage
+   ============================================================ */
+
+.tfs-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.tfs-heading {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+  color: #111827;
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+
+.tfs-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tfs-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: #111827;
+}
+
+/* ── Form fields ──────────────────────────────────────────── */
+
+.tfs-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tfs-field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tfs-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tfs-input,
+.tfs-select {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #fff;
+  color: #111827;
+  transition: border-color 0.15s ease;
+  outline: none;
+}
+
+.tfs-input:focus,
+.tfs-select:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+
+.tfs-file-input {
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.tfs-file-meta {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.tfs-hint {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.tfs-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #6366f1;
+}
+
+/* ── Radio group ─────────────────────────────────────────── */
+
+.tfs-radio-group {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.tfs-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+
+.tfs-btn {
+  padding: 0.55rem 1.4rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s ease;
+  align-self: flex-start;
+}
+
+.tfs-btn--primary {
+  background: #6366f1;
+  color: #fff;
+}
+
+.tfs-btn--primary:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.tfs-btn--primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tfs-icon-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  line-height: 1;
+}
+
+.tfs-icon-btn:hover { background: #f3f4f6; }
+
+.tfs-icon-btn--danger:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+/* ── Storage meter ───────────────────────────────────────── */
+
+.tfs-storage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tfs-storage__labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.tfs-storage__bar {
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.tfs-storage__fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* ── Success banner ──────────────────────────────────────── */
+
+.tfs-success {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #166534;
+}
+
+.tfs-success__meta {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-left: auto;
+}
+
+.tfs-link {
+  color: #6366f1;
+  text-decoration: underline;
+  font-size: 0.85rem;
+}
+
+/* ── File list ───────────────────────────────────────────── */
+
+.tfs-file-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.tfs-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tfs-file-row:last-child { border-bottom: none; }
+
+.tfs-file-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.tfs-file-row__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tfs-file-row__meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tfs-badge {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-weight: 500;
+}
+
+.tfs-file-row__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.tfs-file-row__perm {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tfs-file-row__expiry {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+/* ── Misc ────────────────────────────────────────────────── */
+
+.tfs-error  { color: #dc2626; font-size: 0.85rem; margin: 0; }
+.tfs-muted  { color: #9ca3af; font-size: 0.875rem; margin: 0; }
+
+@media (max-width: 600px) {
+  .tfs-page { padding: 1.5rem 1rem 3rem; }
+  .tfs-file-row__right { gap: 0.5rem; }
+  .tfs-file-row__expiry { display: none; }
+}
