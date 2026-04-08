@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-# docker
-compose.yaml
-docker/
-redis/
-=======
->>>>>>> stable
-
 *.pyc
 .env
 __pycache__/
@@ -90,3 +82,7 @@ backend/compose.yaml
 backend/src/forum/unused_routes.py
 a.txt
 backend/src/forum/unused_services.py
+
+backend/logs/tempfs/*
+backend/tempfs_storage/*
+backend/shared_media/*
