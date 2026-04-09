@@ -9,35 +9,39 @@ import {
   voteThread,
   voteReply,
 } from "../services/forum/forumService";
-import type { ThreadRead, ReplyRead, PaginatedReplies } from "../types/forumTypes";
+import type {
+  ThreadRead,
+  ReplyRead,
+  PaginatedReplies,
+} from "../types/forumTypes";
 
 interface UseThreadPageResult {
-  thread: ThreadRead | null
-  replies: ReplyRead[]
-  parentCache: Record<string, ReplyRead>
-  page: number
-  pages: number
-  total: number
-  loading: boolean
-  repliesLoading: boolean
-  error: string | null
-  replyBody: string
-  setReplyBody: (v: string) => void
-  replyingTo: ReplyRead | null
-  setReplyingTo: (r: ReplyRead | null) => void
-  editingReplyId: string | null
-  editBody: string
-  setEditBody: (v: string) => void
-  startEdit: (reply: ReplyRead) => void
-  cancelEdit: () => void
-  goToPage: (p: number) => void
-  submitReply: () => Promise<void>
-  submitEdit: (replyId: string) => Promise<void>
-  submitDelete: (replyId: string) => Promise<void>
-  submitThreadVote: (isUpvote: boolean) => Promise<void>
-  submitReplyVote: (replyId: string, isUpvote: boolean) => Promise<void>
-  threadVote: boolean | null
-  submitError: string | null
+  thread: ThreadRead | null;
+  replies: ReplyRead[];
+  parentCache: Record<string, ReplyRead>;
+  page: number;
+  pages: number;
+  total: number;
+  loading: boolean;
+  repliesLoading: boolean;
+  error: string | null;
+  replyBody: string;
+  setReplyBody: (v: string) => void;
+  replyingTo: ReplyRead | null;
+  setReplyingTo: (r: ReplyRead | null) => void;
+  editingReplyId: string | null;
+  editBody: string;
+  setEditBody: (v: string) => void;
+  startEdit: (reply: ReplyRead) => void;
+  cancelEdit: () => void;
+  goToPage: (p: number) => void;
+  submitReply: () => Promise<void>;
+  submitEdit: (replyId: string) => Promise<void>;
+  submitDelete: (replyId: string) => Promise<void>;
+  submitThreadVote: (isUpvote: boolean) => Promise<void>;
+  submitReplyVote: (replyId: string, isUpvote: boolean) => Promise<void>;
+  threadVote: boolean | null;
+  submitError: string | null;
 }
 
 const PAGE_SIZE = 15;
@@ -80,42 +84,45 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     fetchThread();
   }, [threadId]);
 
-  const fetchReplies = useCallback(async (targetPage: number) => {
-    setRepliesLoading(true);
-    const res = await getReplies(threadId, targetPage);
-    if (!res.ok || !res.data) {
-      setRepliesLoading(false);
-      return;
-    }
-    const data: PaginatedReplies = res.data;
-    setReplies(data.items);
-    setPages(data.pages);
-    setTotal(data.total);
+  const fetchReplies = useCallback(
+    async (targetPage: number) => {
+      setRepliesLoading(true);
+      const res = await getReplies(threadId, targetPage);
+      if (!res.ok || !res.data) {
+        setRepliesLoading(false);
+        return;
+      }
+      const data: PaginatedReplies = res.data;
+      setReplies(data.items);
+      setPages(data.pages);
+      setTotal(data.total);
 
-    // Fetch any parents not present on this page
-    const pageReplyIds = new Set(data.items.map((r) => r.reply_id));
-    const toFetch = data.items.filter(
-      (r) =>
-        r.parent_reply_id !== null &&
-        !pageReplyIds.has(r.parent_reply_id) &&
-        !parentCache[r.parent_reply_id],
-    );
-
-    if (toFetch.length > 0) {
-      const fetched = await Promise.all(
-        [...new Set(toFetch.map((r) => r.parent_reply_id as string))].map(
-          (id) => getReplyParent(id),
-        ),
+      // Fetch any parents not present on this page
+      const pageReplyIds = new Set(data.items.map((r) => r.reply_id));
+      const toFetch = data.items.filter(
+        (r) =>
+          r.parent_reply_id !== null &&
+          !pageReplyIds.has(r.parent_reply_id) &&
+          !parentCache[r.parent_reply_id],
       );
-      const newEntries: Record<string, ReplyRead> = {};
-      fetched.forEach((res) => {
-        if (res.ok && res.data) newEntries[res.data.reply_id] = res.data;
-      });
-      setParentCache((prev) => ({ ...prev, ...newEntries }));
-    }
 
-    setRepliesLoading(false);
-  }, [threadId, parentCache]);
+      if (toFetch.length > 0) {
+        const fetched = await Promise.all(
+          [...new Set(toFetch.map((r) => r.parent_reply_id as string))].map(
+            (id) => getReplyParent(id),
+          ),
+        );
+        const newEntries: Record<string, ReplyRead> = {};
+        fetched.forEach((res) => {
+          if (res.ok && res.data) newEntries[res.data.reply_id] = res.data;
+        });
+        setParentCache((prev) => ({ ...prev, ...newEntries }));
+      }
+
+      setRepliesLoading(false);
+    },
+    [threadId, parentCache],
+  );
 
   useEffect(() => {
     if (!loading) fetchReplies(page);
@@ -150,12 +157,35 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     const newTotal = total + 1;
     const newLastPage = Math.ceil(newTotal / PAGE_SIZE);
 
-    if (newLastPage === page) {
+    // Optimistic append: if we're already on the last page and it wasn't
+    // full (< PAGE_SIZE replies), we already have the new reply from the
+    // API response — just splice it in and update the total.
+    // This avoids a round-trip re-fetch for the common case of replying
+    // at the bottom of an active thread.
+    const onLastPage = newLastPage === page;
+    const pageWasntFull = replies.length < PAGE_SIZE;
+
+    if (onLastPage && pageWasntFull) {
+      setReplies((prev) => [...prev, res.data!]);
+      setTotal(newTotal);
+    } else if (onLastPage) {
+      // Page was full — the new reply is technically on this page number
+      // but we need a fresh fetch to get the correct slice.
       await fetchReplies(page);
     } else {
+      // Reply landed on a new last page — navigate there.
       setPage(newLastPage);
     }
-  }, [replyBody, replyingTo, threadId, total, page, fetchReplies]);
+  }, [
+    replyBody,
+    replyingTo,
+    threadId,
+    total,
+    page,
+    pages,
+    replies.length,
+    fetchReplies,
+  ]);
 
   const submitEdit = useCallback(
     async (replyId: string) => {
@@ -169,7 +199,11 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
       setReplies((prev) =>
         prev.map((r) =>
           r.reply_id === replyId
-            ? { ...r, body: editBody.trim(), updated_at: new Date().toISOString() }
+            ? {
+                ...r,
+                body: editBody.trim(),
+                updated_at: new Date().toISOString(),
+              }
             : r,
         ),
       );
@@ -187,45 +221,53 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     }
     setReplies((prev) =>
       prev.map((r) =>
-        r.reply_id === replyId ? { ...r, is_deleted: true, body: "[deleted]" } : r,
-      ),
-    );
-  }, []);
-
-  const submitThreadVote = useCallback(async (isUpvote: boolean) => {
-    if (!thread) return;
-    const res = await voteThread(threadId, { is_upvote: isUpvote });
-    if (!res.ok || !res.data) return;
-    setThread((prev) =>
-      prev
-        ? {
-            ...prev,
-            upvote_count: res.data!.upvote_count,
-            downvote_count: res.data!.downvote_count,
-          }
-        : prev,
-    );
-    setThreadVote(res.data.user_vote);
-  }, [thread, threadId]);
-
-  const submitReplyVote = useCallback(async (replyId: string, isUpvote: boolean) => {
-    const res = await voteReply(replyId, { is_upvote: isUpvote });
-    if (!res.ok || !res.data) return;
-    // Update counts and user_vote in place directly on the reply object —
-    // no separate replyVotes map needed since user_vote is now part of ReplyRead.
-    setReplies((prev) =>
-      prev.map((r) =>
         r.reply_id === replyId
-          ? {
-              ...r,
-              upvote_count: res.data!.upvote_count,
-              downvote_count: res.data!.downvote_count,
-              user_vote: res.data!.user_vote,
-            }
+          ? { ...r, is_deleted: true, body: "[deleted]" }
           : r,
       ),
     );
   }, []);
+
+  const submitThreadVote = useCallback(
+    async (isUpvote: boolean) => {
+      if (!thread) return;
+      const res = await voteThread(threadId, { is_upvote: isUpvote });
+      if (!res.ok || !res.data) return;
+      setThread((prev) =>
+        prev
+          ? {
+              ...prev,
+              upvote_count: res.data!.upvote_count,
+              downvote_count: res.data!.downvote_count,
+            }
+          : prev,
+      );
+      setThreadVote(res.data.user_vote);
+    },
+    [thread, threadId],
+  );
+
+  const submitReplyVote = useCallback(
+    async (replyId: string, isUpvote: boolean) => {
+      const res = await voteReply(replyId, { is_upvote: isUpvote });
+      if (!res.ok || !res.data) return;
+      // Update counts and user_vote in place directly on the reply object —
+      // no separate replyVotes map needed since user_vote is now part of ReplyRead.
+      setReplies((prev) =>
+        prev.map((r) =>
+          r.reply_id === replyId
+            ? {
+                ...r,
+                upvote_count: res.data!.upvote_count,
+                downvote_count: res.data!.downvote_count,
+                user_vote: res.data!.user_vote,
+              }
+            : r,
+        ),
+      );
+    },
+    [],
+  );
 
   return {
     thread,

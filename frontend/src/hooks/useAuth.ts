@@ -1,17 +1,17 @@
 import type {
-  APIResponse,
   APISimplifiedResponse,
   LoginResponse,
-  SignupResponse,
   UserLogin,
   UserSignup,
+  SignupResponse,
+  APIResponse,
 } from "../types/authType";
 import { login, signup } from "../services/auth/authService";
 import { useAuthContext } from "../context/AuthContext";
 import { status500 } from "../types/errorType";
 
 export function useAuth() {
-  const { setAuthData, setTokens, accessToken } = useAuthContext();
+  const { setAuthData } = useAuthContext();
 
   const handleLogin = async ({
     username,
@@ -22,20 +22,20 @@ export function useAuth() {
         username,
         password,
       });
-      // on successful login, response has a user field
+
       if (response.ok && response.data) {
-        setTokens(response.data.access_token, response.data.refresh_token);
+        // Role and user info come from the response body.
+        // Tokens are HttpOnly cookies — never touch them from JS.
         setAuthData(response.data.user);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
-        localStorage.removeItem("temp_user");
       }
+
       return {
         ok: response.ok,
         statusCode: response.statusCode,
         error: response.error,
       };
     } catch {
-      return { ok: false, statusCode: 404, error: status500 };
+      return { ok: false, statusCode: 500, error: status500 };
     }
   };
 
@@ -43,21 +43,19 @@ export function useAuth() {
     userData: UserSignup,
   ): Promise<APISimplifiedResponse> => {
     try {
-      if (userData.email == "") userData.email = null;
-      if (userData.nickname == "") userData.nickname = null;
-      if (userData.request == "") userData.request = null;
+      if (userData.email === "") userData.email = null;
+      if (userData.nickname === "") userData.nickname = null;
+      if (userData.request === "") userData.request = null;
 
       const response: APIResponse<SignupResponse> = await signup(userData);
-      if (response.ok && response.data) {
-        localStorage.setItem("temp_user", JSON.stringify(response.data));
-      }
+
       return {
         ok: response.ok,
         statusCode: response.statusCode,
         error: response.error,
       };
     } catch {
-      return { ok: false, statusCode: 404, error: status500 };
+      return { ok: false, statusCode: 500, error: status500 };
     }
   };
 
