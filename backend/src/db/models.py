@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Enum as SAEnum, UniqueConstraint, func
 from sqlalchemy import Interval, Time as Time
 from sqlalchemy.dialects import postgresql as postgres
-from src.db.db_models import *
+from src.db.enums import *
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime, date
@@ -541,17 +541,17 @@ class ReplyVote(SQLModel, table=True):
 """##################################
     NOTE: START TEMPFS DATA 
 ##################################"""
- 
- 
+
+
 class TempFile(SQLModel, table=True):
     """
     Metadata for a temporarily stored file.
     The file itself lives on disk at {TEMPFS_DIR}/{file_id} (no extension).
     Compression state is tracked so the correct bytes are served on download.
     """
- 
+
     __tablename__ = "temp_file"
- 
+
     file_id: Optional[UUID] = Field(
         sa_column=Column(
             postgres.UUID,
@@ -562,7 +562,7 @@ class TempFile(SQLModel, table=True):
         default=None,
     )
     uploader_id: UUID = Field(foreign_key="user_id.id", nullable=False)
- 
+
     original_filename: str = Field(
         sa_column=Column(postgres.VARCHAR, nullable=False),
         max_length=255,
@@ -581,7 +581,7 @@ class TempFile(SQLModel, table=True):
         sa_column=Column(postgres.BOOLEAN, nullable=False, server_default="false"),
         default=False,
     )
- 
+
     download_permission: DownloadPermission = Field(
         sa_column=Column(
             SAEnum(
@@ -598,7 +598,7 @@ class TempFile(SQLModel, table=True):
         default=None,
         exclude=True,
     )  # only set when download_permission == PASSWORD
- 
+
     created_at: Optional[datetime] = Field(
         sa_column=Column(
             postgres.TIMESTAMP(timezone=True),
@@ -610,22 +610,22 @@ class TempFile(SQLModel, table=True):
     expires_at: datetime = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=False, index=True)
     )
- 
- 
+
+
 class ExpiredFile(SQLModel, table=True):
     """
     Audit log of deleted temp files. Mirrors TempFile exactly plus deleted_at.
     Rows are inserted here by the cleanup scheduler at the moment of deletion.
     The file on disk is gone; this row exists purely for logging.
     """
- 
+
     __tablename__ = "expired_file"
- 
+
     file_id: UUID = Field(
         sa_column=Column(postgres.UUID, primary_key=True, nullable=False)
     )
     uploader_id: UUID = Field(foreign_key="user_id.id", nullable=False)
- 
+
     original_filename: str = Field(
         sa_column=Column(postgres.VARCHAR, nullable=False),
         max_length=255,
@@ -671,8 +671,8 @@ class ExpiredFile(SQLModel, table=True):
         ),
         default=None,
     )
- 
- 
+
+
 """##################################
     NOTE: END TEMPFS DATA 
 ##################################"""

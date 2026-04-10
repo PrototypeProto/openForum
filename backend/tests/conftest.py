@@ -33,7 +33,10 @@ from typing import AsyncGenerator
 from dotenv import load_dotenv
 
 # Load .env.test before any src imports so Config picks up the test values
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env.test"), override=True)
+load_dotenv(
+    dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env.test"),
+    override=True,
+)
 
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncConnection
@@ -47,7 +50,7 @@ from src.db.main import get_session
 from src.db.redis_client import _client as redis_client
 
 from src.db.models import User, UserID, PendingUser
-from src.db.db_models import MemberRoleEnum
+from src.db.enums import MemberRoleEnum
 from src.auth.utils import (
     create_access_token,
     generate_passwd_hash,
@@ -64,6 +67,7 @@ TEST_DB_URL = os.environ["TEST_DB_URL"]
 # ══════════════════════════════════════════════════════════════════════════════
 # Session-scoped: engine + schema
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def engine() -> AsyncGenerator[AsyncEngine, None]:
@@ -83,6 +87,7 @@ async def engine() -> AsyncGenerator[AsyncEngine, None]:
 # ══════════════════════════════════════════════════════════════════════════════
 # Function-scoped: isolated session via SAVEPOINT rollback
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 @pytest_asyncio.fixture
 async def connection(engine: AsyncEngine) -> AsyncGenerator[AsyncConnection, None]:
@@ -108,6 +113,7 @@ async def session(connection: AsyncConnection) -> AsyncGenerator[AsyncSession, N
 # Redis flush — runs after every test
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest_asyncio.fixture(autouse=True)
 async def flush_redis():
     """
@@ -122,12 +128,14 @@ async def flush_redis():
 # HTTP client with dependency overrides
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest_asyncio.fixture
 async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
     AsyncClient wired to the app with the test DB session injected.
     Use this for HTTP-level integration tests.
     """
+
     async def _override_get_session():
         yield session
 
@@ -145,6 +153,7 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 # ══════════════════════════════════════════════════════════════════════════════
 # Test data factories
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 async def make_user(
     session: AsyncSession,
@@ -222,6 +231,7 @@ def auth_cookies(access_token: str, refresh_token: str = "") -> dict:
 # Trigger test fixtures
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @pytest_asyncio.fixture
 async def trigger_session() -> AsyncGenerator[AsyncSession, None]:
     """
@@ -243,11 +253,14 @@ async def trigger_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture
-async def trigger_client(trigger_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def trigger_client(
+    trigger_session: AsyncSession,
+) -> AsyncGenerator[AsyncClient, None]:
     """
     AsyncClient wired to trigger_session (real commits) instead of the
     savepoint session. Use alongside trigger_session in trigger tests.
     """
+
     async def _override():
         yield trigger_session
 
@@ -265,6 +278,7 @@ async def trigger_client(trigger_session: AsyncSession) -> AsyncGenerator[AsyncC
 # ══════════════════════════════════════════════════════════════════════════════
 # pytest CLI option for trigger-dependent tests
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def pytest_addoption(parser):
     parser.addoption(

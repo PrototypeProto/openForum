@@ -15,7 +15,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.db.db_models import MemberRoleEnum
+from src.db.enums import MemberRoleEnum
 from src.auth.utils import decode_token
 from src.db.redis_client import token_in_blocklist, get_refresh_token_owner
 
@@ -168,7 +168,7 @@ class TestLogout:
         await client.post("/auth/logout", cookies=auth_cookies(token))
 
         r = await client.get("/auth/me", cookies=auth_cookies(token))
-        assert r.status_code == 403
+        assert r.status_code == 401
 
 
 # ── Refresh token rotation ────────────────────────────────────────────────────
@@ -344,5 +344,5 @@ class TestSignup:
                 "request": None,
             },
         )
-        assert r.status_code == 403
+        assert r.status_code == 409
         assert "username" in r.json()["detail"].lower()

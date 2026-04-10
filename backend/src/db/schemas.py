@@ -1,0 +1,368 @@
+"""
+src/db/schemas.py
+─────────────────
+Pydantic/SQLModel schemas for API request and response bodies.
+
+These are NOT ORM table models (those live in src/db/models.py) and NOT
+enumerations (those live in src/db/enums.py). This file contains:
+
+  - Read schemas     — what the API returns to the client
+  - Write schemas    — what the API accepts from the client
+  - Internal schemas — used between service layers (e.g. FileReadModel)
+
+Naming convention:
+  <Resource>Read    — response body (outbound)
+  <Resource>Create  — POST request body (inbound)
+  <Resource>Update  — PATCH request body (inbound)
+  <Resource>List    — compact read schema for list views
+  Paginated<Resource> — paginated wrapper
+"""
+
+from datetime import date, datetime
+from pathlib import Path
+from typing import Optional
+from uuid import UUID
+
+from pydantic import BaseModel
+from sqlmodel import SQLModel, Field
+
+from src.db.enums import MemberRoleEnum, DownloadPermission
+
+# ── Tempfs constants ──────────────────────────────────────────────────────────
+# Kept here because TempFileCreate references them as Field defaults.
+# Also imported directly by tempfs/service.py.
+TEMPFS_MIN_LIFETIME = 600  # 10 minutes
+TEMPFS_MAX_LIFETIME = 604_800  # 1 week
+TEMPFS_DEFAULT_LIFETIME = 1_800  # 30 minutes
+
+
+# ── User ──────────────────────────────────────────────────────────────────────
+
+
+class UserBaseModel(SQLModel):
+    username: str = Field(min_length=2, max_length=32)
+    email: Optional[str] = Field(default=None, max_length=64)
+    nickname: Optional[str] = Field(default=None)
+
+
+class RegisterUserModel(UserBaseModel):
+    password: str = Field(nullable=False)
+    request: Optional[str]
+
+
+class VerifyUserModel(SQLModel):
+    verified_date: date
+    last_login_date: date
+    role: MemberRoleEnum
+    
+
+class UserRead(SQLModel):
+    user_id: UUID
+    username: str
+    nickname: Optional[str]
+    join_date: date
+    role: MemberRoleEnum
+
+
+class UserPrivateRead(UserRead):
+    email: Optional[str]
+    last_login_date: Optional[date]
+
+
+class PendingUserRead(SQLModel):
+    user_id: UUID
+    username: str
+    email: Optional[str]
+    nickname: Optional[str]
+    join_date: date
+    request: Optional[str]
+
+
+class RejectedUserRead(SQLModel):
+    user_id: UUID
+    username: str
+    email: Optional[str]
+    nickname: Optional[str]
+    join_date: date
+    request: Optional[str]
+    rejected_date: date
+
+
+class UserStats(BaseModel):
+    pending: int = 0
+    user: int = 0
+    vip: int = 0
+    admin: int = 0
+
+
+# ── Auth (request bodies) ─────────────────────────────────────────────────────
+
+
+class UserBase(SQLModel):
+    username: str = Field(min_length=2, max_length=32)
+    email: Optional[str] = Field(default=None, max_length=64)
+    nickname: Optional[str] = Field(default=None)
+
+
+class UserRegister(UserBase):
+    password: str
+    request: Optional[str] = None
+
+
+class UserLogin(SQLModel):
+    username: str = Field(min_length=2, max_length=32)
+    password: str
+
+
+class UserData(UserBase):
+    """Response body for signup and login."""
+
+    user_id: UUID
+    role: Optional[MemberRoleEnum] = None
+
+
+# ── Topic group ───────────────────────────────────────────────────────────────
+
+
+class TopicGroupRead(SQLModel):
+    group_id: UUID
+    name: str
+    display_order: int
+
+
+# ── Topic ─────────────────────────────────────────────────────────────────────
+
+
+class TopicRead(SQLModel):
+    topic_id: UUID
+    group_id: Optional[UUID]
+    name: str
+    description: Optional[str]
+    icon_url: Optional[str]
+    display_order: int
+    thread_count: int
+    reply_count: int
+    is_locked: bool
+    last_activity_at: Optional[datetime]
+    last_thread_id: Optional[UUID]
+    last_poster_username: Optional[str]
+
+
+# ── Thread ────────────────────────────────────────────────────────────────────
+
+
+class ThreadRead(SQLModel):
+    thread_id: UUID
+    topic_id: UUID
+    author_id: UUID
+    author_username: str
+    title: str
+    body: str
+    created_at: datetime
+    updated_at: Optional[datetime]
+    is_pinned: bool
+    is_locked: bool
+    is_deleted: bool
+    reply_count: int
+    upvote_count: int
+    downvote_count: int
+    last_activity_at: Optional[datetime]
+    last_reply_username: Optional[str] = None
+
+
+class ThreadListItem(SQLModel):
+    """Compact thread row for topic listing pages."""
+
+    thread_id: UUID
+    title: str
+    author_id: UUID
+    author_username: str
+    created_at: datetime
+    reply_count: int
+    upvote_count: int
+    downvote_count: int
+    is_pinned: bool
+    last_activity_at: Optional[datetime]
+    last_reply_username: Optional[str]
+
+
+class ThreadWithVote(ThreadRead):
+    user_vote: Optional[bool]  # True = upvote, False = downvote, None = no vote
+
+
+class ThreadCreate(SQLModel):
+    title: str = Field(max_length=200)
+    body: str
+
+
+class ThreadUpdate(SQLModel):
+    title: Optional[str] = Field(default=None, max_length=200)
+    body: Optional[str] = None
+    # Mod-only fields — ownership enforced in the route handler
+    is_pinned: Optional[bool] = None
+    pin_expires_at: Optional[datetime] = None
+    is_locked: Optional[bool] = None
+
+
+class PaginatedThreads(SQLModel):
+    items: list[ThreadListItem]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+# ── Reply ─────────────────────────────────────────────────────────────────────
+
+
+class ReplyRead(SQLModel):
+    """
+    Single reply card for thread view.
+    reply_number is 1-based creation order within the thread.
+    """
+
+    reply_id: UUID
+    thread_id: UUID
+    author_id: UUID
+    author_username: str
+    parent_reply_id: Optional[UUID]
+    parent_author_username: Optional[str]
+    body: str
+    is_deleted: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+    reply_number: int
+    upvote_count: int
+    downvote_count: int
+
+
+class ReplyWithVote(ReplyRead):
+    user_vote: Optional[bool] = False
+
+
+class PaginatedReplies(SQLModel):
+    """
+    Page 1 returns up to 14 items (slot 1 is the thread body as reply #1).
+    Page 2+ returns up to 15 items.
+    """
+
+    items: list[ReplyWithVote]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+class ReplyCreate(SQLModel):
+    body: str
+    parent_reply_id: Optional[UUID] = None
+
+
+class ReplyUpdate(SQLModel):
+    body: str  # only the body is editable by the author
+
+
+# ── Vote ──────────────────────────────────────────────────────────────────────
+
+
+class VotePayload(SQLModel):
+    is_upvote: bool
+
+
+class VoteResult(SQLModel):
+    """Returned after any vote action so the client can update counts in-place."""
+
+    upvote_count: int
+    downvote_count: int
+    user_vote: Optional[bool]
+
+
+# ── TempFS ────────────────────────────────────────────────────────────────────
+
+
+class TempFileRead(SQLModel):
+    file_id: UUID
+    original_filename: str
+    mime_type: str
+    original_size: int
+    stored_size: int
+    is_compressed: bool
+    download_permission: str
+    created_at: datetime
+    expires_at: datetime
+
+
+class TempFileCreate(SQLModel):
+    download_permission: DownloadPermission = DownloadPermission.PUBLIC
+    password: Optional[str] = None
+    lifetime_seconds: int = Field(
+        default=TEMPFS_DEFAULT_LIFETIME,
+        ge=TEMPFS_MIN_LIFETIME,
+        le=TEMPFS_MAX_LIFETIME,
+    )
+    compress: bool = True
+
+
+class TempFileUploadResponse(SQLModel):
+    file_id: UUID
+    original_filename: str
+    original_size: int
+    stored_size: int
+    is_compressed: bool
+    expires_at: datetime
+    download_permission: str
+    used_bytes: int
+    remaining_bytes: int
+
+
+class TempFilePublicInfo(SQLModel):
+    """
+    Public metadata returned without auth.
+    None fields indicate file not found / expired — caller raises 404.
+    """
+
+    file_id: UUID
+    original_filename: str
+    original_size: int
+    stored_size: int
+    is_compressed: bool
+    download_permission: str
+    expires_at: datetime
+    requires_password: bool
+
+
+class StorageStatusRead(SQLModel):
+    used_bytes: int
+    remaining_bytes: int
+    storage_cap_bytes: int
+
+
+class FileReadModel(SQLModel):
+    """Internal model passed between tempfs service and route handler."""
+
+    disk_path: Path
+    original_filename: str
+    mime_type: str
+    is_compressed: bool
+
+
+# ── Media ─────────────────────────────────────────────────────────────────────
+
+
+class PaginatedMedia(SQLModel):
+    items: list[str]  # filenames
+    total: int
+    page: int
+    page_size: int
+    pages: int
+
+
+# ── Admin write models ────────────────────────────────────────────────────────
+
+
+class VerifyUserModel(SQLModel):
+    """Used internally when approving a pending user."""
+
+    verified_date: date
+    last_login_date: Optional[date]
+    role: MemberRoleEnum

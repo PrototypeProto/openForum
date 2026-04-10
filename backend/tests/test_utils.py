@@ -148,5 +148,5 @@ class TestSecondsUntilExpiry:
         # Guard against accidentally changing the constant
         assert ACCESS_TOKEN_EXPIRY_SECONDS == 60 * 75
 
-    def test_refresh_token_expiry_is_24_hours(self):
-        assert REFRESH_TOKEN_EXPIRY_SECONDS == 60 * 60 * 24
+    def test_refresh_token_expiry_is_1_week(self):
+        assert REFRESH_TOKEN_EXPIRY_SECONDS == 60 * 60 * 24 * 7

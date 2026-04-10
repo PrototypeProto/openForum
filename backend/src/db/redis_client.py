@@ -15,7 +15,7 @@ Using namespaced keys in one DB means:
 """
 import redis.asyncio as redis
 from src.config import Config
-from src.db.db_models import MemberRoleEnum
+from src.db.enums import MemberRoleEnum
 
 # ---------------------------------------------------------------------------
 # Single shared client

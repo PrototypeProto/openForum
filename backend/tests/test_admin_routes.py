@@ -17,7 +17,7 @@ from datetime import date
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.db.db_models import MemberRoleEnum
+from src.db.enums import MemberRoleEnum
 from src.db.models import UserID, PendingUser
 from src.db.redis_client import add_registered_user, get_user
 from src.auth.utils import generate_passwd_hash

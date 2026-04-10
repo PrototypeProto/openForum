@@ -12,8 +12,9 @@ from .utils import (
     ACCESS_TOKEN_EXPIRY_SECONDS,
 )
 from .schemas import AccessTokenUserData, LoginResultEnum
-from src.db.db_models import MemberRoleEnum, RegisterUserModel
+from src.db.enums import MemberRoleEnum
 from src.db.models import PendingUser
+from src.db.schemas import RegisterUserModel
 from src.db.redis_client import add_registered_user, get_user, store_refresh_token
 
 

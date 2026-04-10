@@ -5,12 +5,16 @@ from src.config import Config
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import logging
+from src.config import Config
+
+logger = logging.getLogger("portfolio.auth")
+logger.setLevel(Config.log_level)
 
 # Access token: 75 minutes
 ACCESS_TOKEN_EXPIRY_SECONDS = 60 * 75
 
-# Refresh token: 24 hours
-REFRESH_TOKEN_EXPIRY_SECONDS = 60 * 60 * 24
+# Refresh token: 7 days
+REFRESH_TOKEN_EXPIRY_SECONDS = 60 * 60 * 24 * 7
 
 
 def generate_passwd_hash(password: str) -> str:
@@ -51,7 +55,7 @@ def decode_token(token: str) -> dict | None:
     except ExpiredSignatureError:
         raise Exception("Token has expired")
     except jwt.PyJWTError as e:
-        logging.exception(e)
+        logger.exception("JWT decode error: %s", e)
         return None
 
 

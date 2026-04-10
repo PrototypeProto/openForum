@@ -2,7 +2,7 @@ from src.db.models import *
 import math
 from pathlib import Path
 from src.config import Config
-from src.db.read_models import PaginatedMedia
+from src.db.schemas import PaginatedMedia
  
 ALLOWED_EXTENSIONS = {".mp4", ".jpg", ".jpeg", ".png"}
  

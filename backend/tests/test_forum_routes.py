@@ -28,7 +28,7 @@ from uuid import uuid4
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.db.db_models import MemberRoleEnum
+from src.db.enums import MemberRoleEnum
 from src.db.models import TopicGroup, Topic, Thread, Reply
 from src.db.redis_client import add_registered_user
 

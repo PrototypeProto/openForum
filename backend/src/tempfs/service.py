@@ -18,9 +18,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.auth.utils import generate_passwd_hash, verify_passwd
 from src.config import Config
-from src.db.db_models import DownloadPermission, MemberRoleEnum
+from src.db.enums import DownloadPermission, MemberRoleEnum
 from src.db.models import TempFile, ExpiredFile
-from src.db.read_models import (
+from src.db.schemas import (
+    TEMPFS_MIN_LIFETIME,
+    TEMPFS_MAX_LIFETIME,
+    TEMPFS_DEFAULT_LIFETIME,
     TempFileRead,
     TempFileUploadResponse,
     StorageStatusRead,
@@ -39,13 +42,21 @@ from src.tempfs.logger import (
     log_cleanup_delete_fail,
     log_cleanup_delete_ok,
 )
-from src.db.users_redis import get_user
+from src.db.redis_client import get_user
+from src.exceptions import (
+    BadRequestError,
+    FileTooLargeError,
+    QuotaExceededError,
+    InvalidPasswordError,
+    NotFoundError,
+    ForbiddenError,
+    FileNotFoundError as AppFileNotFoundError,
+    InternalError,
+)
 
 TEMPFS_DIR = Path(Config.TEMPFS_DIR)
 TOTAL_SHARED_BYTES = 200 * 1024 ** 3          # 200 GB global quota
 USER_QUOTA_BYTES = 5 * 1024 ** 3          # 5 GB per-user quota
-MAX_LIFETIME = 7 * 24 * 3600         # 1 week in seconds
-MIN_LIFETIME = 600                   # 30 min in seconds
 MAX_FILE_SIZE = 2 * 1024 ** 3        # 2 GB per file
 CHUNK = 1024 * 1024                  # 1 MB read chunks
 
@@ -95,10 +106,10 @@ class TempFSService:
         perm = DownloadPermission(metadata.download_permission)
         if perm == DownloadPermission.PASSWORD and not metadata.password:
             log_upload_fail(username, "password_permission_requires_password")
-            raise ValueError("A password is required when permission is 'password'")
+            raise InvalidPasswordError("A password is required when permission is 'password'")
 
         # Clamp lifetime
-        lifetime = max(MIN_LIFETIME, min(metadata.lifetime_seconds, MAX_LIFETIME))
+        lifetime = max(TEMPFS_MIN_LIFETIME, min(metadata.lifetime_seconds, TEMPFS_MAX_LIFETIME))
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=lifetime)
 
         # Read full file into memory to get size before touching disk
@@ -111,7 +122,7 @@ class TempFSService:
                 "file_size": file_size,
                 "max_size": MAX_FILE_SIZE,
             })
-            raise ValueError(f"File exceeds 2 GB limit ({self._bytes_to_MB(file_size)})")
+            raise FileTooLargeError(f"File exceeds 2 GB limit ({self._bytes_to_MB(file_size)})")
 
         # Check global quota BEFORE writing anything
         system_bytes_used = await self._used_bytes(session)
@@ -121,7 +132,7 @@ class TempFSService:
                 "file_size": file_size,
                 "total_bytes_offered": TOTAL_SHARED_BYTES,
             })
-            raise ValueError(
+            raise QuotaExceededError(
                 f"Upload would exceed global storage quota. "
                 f"Used: {self._bytes_to_MB(system_bytes_used)}, file: {self._bytes_to_MB(file_size)}, quota: {self._bytes_to_MB(TOTAL_SHARED_BYTES)}"
             )
@@ -134,7 +145,7 @@ class TempFSService:
                 "file_size": file_size,
                 "quota": USER_QUOTA_BYTES,
             })
-            raise ValueError(
+            raise QuotaExceededError(
                 f"Upload would exceed assigned user storage quota. "
                 f"Used: {self._bytes_to_MB(user_bytes_used)}, file: {self._bytes_to_MB(file_size)}, quota: {self._bytes_to_MB(USER_QUOTA_BYTES)}"
             )
@@ -256,7 +267,7 @@ class TempFSService:
         if not record or record.expires_at <= now:
             reason = "not_found_or_expired"
             log_download_fail(requester_username, str(file_id), reason)
-            raise ValueError(reason)
+            raise AppFileNotFoundError(reason)
 
         perm_required = record.download_permission
 
@@ -265,7 +276,7 @@ class TempFSService:
             if requester_id is None or requester_id != record.uploader_id:
                 reason = "permission_denied"
                 log_download_fail(requester_username, str(file_id), reason)
-                raise ValueError(reason)
+                raise AppFileNotFoundError(reason)
 
         elif perm_required == DownloadPermission.PASSWORD:
             # Uploader always bypasses password
@@ -274,7 +285,7 @@ class TempFSService:
                 if not password or not verify_passwd(password, record.password_hash):
                     reason = "invalid_password"
                     log_download_fail(requester_username, str(file_id), reason)
-                    raise ValueError(reason)
+                    raise AppFileNotFoundError(reason)
 
         # perm == PUBLIC: no further checks needed
 
@@ -282,7 +293,7 @@ class TempFSService:
         if not disk_path.exists():
             reason = "file_missing_from_disk"
             log_download_fail(requester_username, str(file_id), reason)
-            raise ValueError(reason)
+            raise AppFileNotFoundError(reason)
 
         log_download_ok(requester_username, str(file_id), record.original_filename)
         return FileReadModel(disk_path=disk_path, original_filename=record.original_filename, mime_type=record.mime_type, is_compressed=record.is_compressed)
@@ -299,11 +310,11 @@ class TempFSService:
         record = await session.get(TempFile, file_id)
         if not record:
             log_manual_delete_fail(username, str(file_id), "not_found")
-            raise ValueError("not_found")
+            raise NotFoundError("File not found")
 
         if not is_admin and record.uploader_id != requester_id:
             log_manual_delete_fail(username, str(file_id), "permission_denied")
-            raise ValueError("permission_denied")
+            raise ForbiddenError("You do not have permission to delete this file")
 
         await self._move_to_expired(record, session)
         log_delete_ok(username, str(file_id), record.original_filename)
@@ -343,7 +354,7 @@ class TempFSService:
         try:
             disk_path.unlink(missing_ok=True)
             if disk_path.exists():
-                raise Exception("deleted file still exists")
+                raise InternalError("Deleted file still exists on disk")
             log_cleanup_delete_ok(record.file_id)
         except OSError as e:
             log_cleanup_delete_fail(record.file_id, e)
@@ -392,15 +403,3 @@ class TempFSService:
             expires_at=record.expires_at,
             requires_password=record.download_permission == DownloadPermission.PASSWORD,
         )
-
-    # Requirements
-    async def is_valid_uploader(self, username: str) -> None:
-        try:
-            role = await get_user(username)
-        except Exception as e:
-            raise Exception("failed to access redis entry")
-        
-        if role not in {MemberRoleEnum.VIP, MemberRoleEnum.ADMIN}:
-            raise Exception("role error")
-
-

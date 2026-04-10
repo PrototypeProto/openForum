@@ -1,5 +1,4 @@
 from fastapi import Request, status, Depends
-from fastapi.exceptions import HTTPException
 from fastapi.openapi.models import APIKey, APIKeyIn
 from fastapi.security.base import SecurityBase
 from .utils import decode_token, seconds_until_expiry
@@ -9,18 +8,25 @@ from src.db.redis_client import (
     get_user,
     add_registered_user,
 )
-from src.db.db_models import MemberRoleEnum
+from src.db.enums import MemberRoleEnum
 from src.db.main import get_session
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from src.db.models import User
+from src.exceptions import (
+    ForbiddenError,
+    UnauthorizedError,
+    NotFoundError,
+    InsufficientPermissionsError,
+    RoleChangedError,
+    SessionRevokedError,
+)
 from typing import List
 
 
 # ---------------------------------------------------------------------------
 # Base cookie bearer
 # ---------------------------------------------------------------------------
-
 
 class CookieTokenBearer(SecurityBase):
     """
@@ -44,30 +50,26 @@ class CookieTokenBearer(SecurityBase):
         self.scheme_name = self.__class__.__name__
 
     async def __call__(self, request: Request) -> dict | None:
+        # If the middleware already rotated the token this request,
+        # use the fresh token data directly — the cookie is stale.
+        rotated = getattr(request.state, "rotated_token_data", None)
+        if rotated is not None:
+            self._verify_token_type(rotated)
+            return rotated
+
         token = request.cookies.get(self.cookie_name)
 
         if not token:
             if not self.auto_error:
                 return None
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No authentication cookie provided",
-            )
+            raise ForbiddenError("No authentication cookie provided")
 
         token_data = decode_token(token)
         if token_data is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token"
-            )
+            raise ForbiddenError("Invalid token")
 
         if await token_in_blocklist(token_data["jti"]):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "error": "This token has been revoked",
-                    "resolution": "Please log in again",
-                },
-            )
+            raise SessionRevokedError("This token has been revoked. Please log in again.")
 
         self._verify_token_type(token_data)
 
@@ -82,10 +84,7 @@ class CookieTokenBearer(SecurityBase):
                 await add_jti_to_blocklist(
                     token_data["jti"], seconds_until_expiry(token_data)
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Session invalidated due to role change. Please log in again.",
-                )
+                raise RoleChangedError()
 
         return token_data
 
@@ -99,10 +98,7 @@ class AccessTokenBearer(CookieTokenBearer):
 
     def _verify_token_type(self, token_data: dict) -> None:
         if token_data.get("refresh"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Provide an access token, not a refresh token",
-            )
+            raise ForbiddenError("Provide an access token, not a refresh token")
 
 
 class RefreshTokenBearer(CookieTokenBearer):
@@ -111,16 +107,12 @@ class RefreshTokenBearer(CookieTokenBearer):
 
     def _verify_token_type(self, token_data: dict) -> None:
         if not token_data.get("refresh"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Provide a refresh token, not an access token",
-            )
+            raise ForbiddenError("Provide a refresh token, not an access token")
 
 
 # ---------------------------------------------------------------------------
 # Role checker
 # ---------------------------------------------------------------------------
-
 
 class RoleChecker:
     """
@@ -144,22 +136,15 @@ class RoleChecker:
     ) -> dict:
         username = token_details.get("user", {}).get("username")
         if not username:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token payload"
-            )
+            raise ForbiddenError("Invalid token payload")
 
         live_role = await self._resolve_role(username, session)
 
         if live_role is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="User not found"
-            )
+            raise NotFoundError("User not found")
 
         if live_role not in self.allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions",
-            )
+            raise InsufficientPermissionsError()
 
         return token_details
 
@@ -190,7 +175,9 @@ require_user = Depends(
 )
 
 #: VIP or admin (e.g. file upload)
-require_vip = Depends(RoleChecker([MemberRoleEnum.VIP, MemberRoleEnum.ADMIN]))
+require_vip = Depends(
+    RoleChecker([MemberRoleEnum.VIP, MemberRoleEnum.ADMIN])
+)
 
 #: Admin only
 require_admin = Depends(RoleChecker([MemberRoleEnum.ADMIN]))

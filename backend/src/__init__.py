@@ -1,5 +1,8 @@
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, Request
+from fastapi.responses import JSONResponse
+from src.exceptions import AppException
 from fastapi.middleware.cors import CORSMiddleware
+from src.auth.middleware import TokenRefreshMiddleware
 from src.root_routes import router as root_router
 from src.auth.auth_routes import router as auth_router
 from src.admin.admin_routes import router as admin_router
@@ -14,7 +17,6 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def life_span(app: FastAPI):
     print("Server is starting...")
-    # Using Alembic instead to manage DB updates
     start_scheduler()
     yield
     stop_scheduler()
@@ -32,6 +34,14 @@ app = FastAPI(
     lifespan=life_span,
 )
 
+
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.code, "detail": exc.detail},
+    )
+
 # app.include_router(router=router, prefix=f"/{api_version}/user")
 app.add_middleware(
     CORSMiddleware,
@@ -40,11 +50,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(TokenRefreshMiddleware)
 app.include_router(router=root_router)
 app.include_router(router=auth_router)
 app.include_router(router=admin_router)
 app.include_router(router=media_router)
 app.include_router(router=forum_router)
 app.include_router(router=tempfs_router)
-# app.include_router(router=product_router, prefix="/products")
-# app.include_router(router=member_router, prefix="/member")

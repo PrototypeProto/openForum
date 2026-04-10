@@ -2,45 +2,31 @@
 /tempfs routes
 VIP and Admin only for upload/list/storage. Download access depends on file permission setting.
 """
-
 import io
 from typing import Annotated, Optional
 from uuid import UUID
 
 import zstandard as zstd
-from fastapi import (
-    APIRouter,
-    Depends,
-    File,
-    Form,
-    HTTPException,
-    Query,
-    UploadFile,
-    status,
-)
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.auth.dependencies import (
-    require_user,
-    require_vip,
-    access_token_bearer,
-    AccessTokenBearer,
-)
+from src.auth.dependencies import require_user, require_vip, access_token_bearer, AccessTokenBearer
+from src.exceptions import NotFoundError
 from src.auth.service import AuthService
 from src.admin.service import AdminService
-from src.db.db_models import DownloadPermission
+from src.db.enums import DownloadPermission
 from src.db.main import get_session
-from src.db.read_models import (
+from src.db.schemas import (
     StorageStatusRead,
     TempFileCreate,
     TempFileRead,
     TempFileUploadResponse,
     FileReadModel,
     TempFilePublicInfo,
-    MAX_LIFETIME,
-    MIN_LIFETIME,
-    DEFAULT_LIFETIME,
+    TEMPFS_MAX_LIFETIME,
+    TEMPFS_MIN_LIFETIME,
+    TEMPFS_DEFAULT_LIFETIME,
 )
 from src.tempfs.service import TempFSService, _file_path
 
@@ -54,19 +40,13 @@ SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 optional_token_bearer = Depends(AccessTokenBearer(auto_error=False))
 
 
-@router.post(
-    "/upload",
-    response_model=TempFileUploadResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/upload", response_model=TempFileUploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_file(
     session: SessionDependency,
     file: UploadFile = File(...),
     download_permission: DownloadPermission = Form(default=DownloadPermission.PUBLIC),
     password: Optional[str] = Form(default=None),
-    lifetime_seconds: int = Form(
-        default=DEFAULT_LIFETIME, ge=MIN_LIFETIME, le=MAX_LIFETIME
-    ),
+    lifetime_seconds: int = Form(default=TEMPFS_DEFAULT_LIFETIME, ge=TEMPFS_MIN_LIFETIME, le=TEMPFS_MAX_LIFETIME),
     compress: bool = Form(default=True),
     token_details: dict = require_vip,
 ):
@@ -82,16 +62,12 @@ async def upload_file(
         compress=compress,
     )
 
-    try:
-        return await service.upload(
-            file,
-            metadata,
-            token_details["user"]["user_id"],
-            token_details["user"]["username"],
-            session,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return await service.upload(
+        file, metadata,
+        token_details["user"]["user_id"],
+        token_details["user"]["username"],
+        session,
+    )
 
 
 @router.get("/files", response_model=list[TempFileRead])
@@ -132,10 +108,7 @@ async def get_file_info(
     """
     info: TempFilePublicInfo = await service.get_public_info(file_id, session)
     if not info:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found or forbidden access",
-        )
+        raise NotFoundError("File not found or forbidden access")
     return info
 
 
@@ -163,22 +136,16 @@ async def download_file(
         requester_id = UUID(token_details["user"]["user_id"])
         requester_username = token_details["user"]["username"]
 
-    try:
-        file: FileReadModel = await service.get_file_for_download(
-            file_id,
-            requester_id,
-            requester_username,
-            password,
-            want_compressed,
-            session,
-        )
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
-        )
+    file: FileReadModel = await service.get_file_for_download(
+        file_id,
+        requester_id,
+        requester_username,
+        password,
+        want_compressed,
+        session,
+    )
 
     if want_compressed and file.is_compressed:
-
         def _iter_raw():
             with open(file.disk_path, "rb") as f:
                 while chunk := f.read(1024 * 1024):
@@ -187,9 +154,7 @@ async def download_file(
         return StreamingResponse(
             _iter_raw(),
             media_type="application/zstd",
-            headers={
-                "Content-Disposition": f'attachment; filename="{file.original_filename}.zst"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="{file.original_filename}.zst"'},
         )
 
     elif want_compressed and not file.is_compressed:
@@ -206,13 +171,10 @@ async def download_file(
         return StreamingResponse(
             _iter_compress(),
             media_type="application/zstd",
-            headers={
-                "Content-Disposition": f'attachment; filename="{file.original_filename}.zst"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="{file.original_filename}.zst"'},
         )
 
     elif not want_compressed and file.is_compressed:
-
         def _iter_decompress():
             dctx = zstd.ZstdDecompressor()
             with open(file.disk_path, "rb") as f:
@@ -223,13 +185,10 @@ async def download_file(
         return StreamingResponse(
             _iter_decompress(),
             media_type=file.mime_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="{file.original_filename}"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="{file.original_filename}"'},
         )
 
     else:
-
         def _iter_plain():
             with open(file.disk_path, "rb") as f:
                 while chunk := f.read(1024 * 1024):
@@ -238,9 +197,7 @@ async def download_file(
         return StreamingResponse(
             _iter_plain(),
             media_type=file.mime_type,
-            headers={
-                "Content-Disposition": f'attachment; filename="{file.original_filename}"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="{file.original_filename}"'},
         )
 
 
@@ -260,11 +217,4 @@ async def delete_file(
 
     is_admin = await admin_service.is_user_admin(username, session)
 
-    try:
-        await service.delete_file(file_id, requester_id, username, is_admin, session)
-    except ValueError as e:
-        if str(e) == "not_found":
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
-            )
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+    await service.delete_file(file_id, requester_id, username, is_admin, session)

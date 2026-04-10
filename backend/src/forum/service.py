@@ -5,7 +5,7 @@ from sqlmodel import select, desc, update, insert, delete, func, col
 from datetime import date, datetime, timedelta
 from uuid import UUID
 from typing import Tuple
-from src.db.read_models import *
+from src.db.schemas import *
 from src.auth.service import AuthService
 from sqlalchemy.orm import aliased
 

@@ -8,11 +8,11 @@ from sqlmodel import select, desc, update, insert, delete, func
 from datetime import date, datetime, timedelta
 from uuid import UUID
 from typing import List, Tuple
-from src.db.db_models import MemberRoleEnum, VerifyUserModel
+from src.db.enums import MemberRoleEnum
 from src.db.models import PendingUser
 from src.db.redis_client import add_registered_user, get_user, remove_user
 from src.auth.service import AuthService
-from src.db.read_models import *
+from src.db.schemas import *
 
 auth_service = AuthService()
 

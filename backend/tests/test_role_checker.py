@@ -17,7 +17,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.db.db_models import MemberRoleEnum
+from src.db.enums import MemberRoleEnum
 from src.db.redis_client import (
     add_jti_to_blocklist,
     add_registered_user,
@@ -31,6 +31,7 @@ from tests.conftest import make_user, make_access_token, auth_cookies
 
 
 # ── CookieTokenBearer ─────────────────────────────────────────────────────────
+
 
 class TestCookieTokenBearer:
     async def test_missing_cookie_returns_403(self, client: AsyncClient):
@@ -51,15 +52,17 @@ class TestCookieTokenBearer:
         await add_jti_to_blocklist(jti, ttl_seconds=300)
 
         r = await client.get("/auth/me", cookies=auth_cookies(token))
-        assert r.status_code == 403
-        detail = r.json()["detail"]
-        assert detail["error"] == "This token has been revoked"
+        assert r.status_code == 401
+        body = r.json()
+        assert body["error"] == "session_revoked"
+        assert "revoked" in body["detail"].lower()
 
     async def test_refresh_token_in_access_slot_returns_403(
         self, client: AsyncClient, session: AsyncSession
     ):
         user = await make_user(session)
         from tests.conftest import make_refresh_token
+
         refresh = await make_refresh_token(user)
 
         # Send the refresh token where the access token is expected
@@ -115,6 +118,7 @@ class TestCookieTokenBearer:
 
 
 # ── RoleChecker ───────────────────────────────────────────────────────────────
+
 
 class TestRoleChecker:
     async def test_redis_cache_hit_allows_access(
@@ -204,7 +208,7 @@ class TestRoleChecker:
         token = create_access_token(user_data=phantom_data)
 
         r = await client.get("/auth/me", cookies=auth_cookies(token))
-        assert r.status_code == 403
+        assert r.status_code == 404
         assert "not found" in r.json()["detail"].lower()
 
     async def test_role_change_immediately_enforced(
