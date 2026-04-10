@@ -91,16 +91,15 @@ export const API = {
     storage: `${TEMPFS_URL}/storage`,
     // GET  /tempfs/files/{fileId}
     info: (fileId: string) => `${TEMPFS_URL}/files/${fileId}`,
-    // GET  /tempfs/files/{fileId}/content?want_compressed=false&password=...
+    // GET  /tempfs/files/{fileId}/content?want_compressed=false
+    // Password is sent via X-File-Password header, not in the URL
     download: (
       fileId: string,
       wantCompressed: boolean = false,
-      password?: string,
     ) => {
       const params = new URLSearchParams({
         want_compressed: String(wantCompressed),
       });
-      if (password !== undefined) params.set("password", password);
       return `${TEMPFS_URL}/files/${fileId}/content?${params.toString()}`;
     },
     // DELETE /tempfs/files/{fileId}

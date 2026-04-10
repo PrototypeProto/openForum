@@ -71,8 +71,9 @@ export async function deleteFile(fileId: string): Promise<APIResponse<null>> {
 }
 
 /**
- * Initiates a file download by constructing the download URL with optional
- * query params and triggering a browser anchor click.
+ * Initiates a file download.
+ * Password-protected files send the password via the X-File-Password header
+ * (never in the URL) so it doesn't leak into logs or browser history.
  * Returns an error string if the server responds with non-200.
  */
 export async function downloadFile(
@@ -80,17 +81,32 @@ export async function downloadFile(
   wantCompressed: boolean,
   password: string | null,
 ): Promise<string | null> {
-  const url = API.tempfs.download(fileId, wantCompressed, password ?? undefined);
+  const url = API.tempfs.download(fileId, wantCompressed);
 
-  const res = await fetch(url, { credentials: "include" });
+  const headers: HeadersInit = {};
+  if (password) {
+    headers["X-File-Password"] = password;
+  }
+
+  const res = await fetch(url, { credentials: "include", headers });
   if (!res.ok) {
     return res.status === 404 ? "File not found or expired" : "Download failed";
   }
 
-  // Extract filename from Content-Disposition header if present
+  // Parse filename from Content-Disposition, preferring the RFC 5987 filename* form
   const disposition = res.headers.get("Content-Disposition") ?? "";
-  const match = disposition.match(/filename="([^"]+)"/);
-  const filename = match ? match[1] : "download";
+  let filename = "download";
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^\s;]+)/i);
+  if (utf8Match) {
+    try {
+      filename = decodeURIComponent(utf8Match[1]);
+    } catch {
+      filename = utf8Match[1];
+    }
+  } else {
+    const asciiMatch = disposition.match(/filename="([^"]+)"/);
+    if (asciiMatch) filename = asciiMatch[1];
+  }
 
   const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);
