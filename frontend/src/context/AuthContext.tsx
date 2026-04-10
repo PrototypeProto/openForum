@@ -7,19 +7,13 @@ import React, {
 } from "react";
 import { EXPIRED_USER, type AuthenticatedUser } from "../types/authType";
 import { useNavigate } from "react-router-dom";
-import {
-  logout as apiLogout,
-  getMe,
-  refreshToken,
-} from "../services/auth/authService";
-import { registerUnauthorizedHandler } from "../utils/fetchHelper";
+import { logout as apiLogout, getMe } from "../services/auth/authService";
 
 interface AuthContextType {
   authData: AuthenticatedUser | null;
   setAuthData: (data: AuthenticatedUser | null) => void;
   getUsernameOrGuest: () => string;
   logout: () => Promise<void>;
-  handleUnauthorized: () => Promise<void>;
   sessionLoading: boolean;
 }
 
@@ -37,6 +31,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // On mount, verify the session is still valid by calling /auth/me.
   // This is the single source of truth for whether the user is logged in —
   // localStorage is not used because it can't reflect cookie revocation.
+  // Token rotation is handled transparently by the server middleware, so
+  // a 401 here means the session is genuinely over.
   useEffect(() => {
     async function verifySession() {
       const res = await getMe();
@@ -59,29 +55,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     navigate("/logged-out");
   }, [navigate]);
 
-  // Called by fetchHelper when any request returns 401.
-  // Attempts a token rotation first; if that also fails, forces re-login.
-  const handleUnauthorized = useCallback(async () => {
-    const res = await refreshToken();
-    if (res.ok) {
-      // Rotation succeeded — fresh cookies are set. Re-fetch user data.
-      const meRes = await getMe();
-      if (meRes.ok && meRes.data) {
-        setAuthDataState(meRes.data);
-        return;
-      }
-    }
-    // Rotation failed (reuse detected, expired, etc.) — force re-login.
-    setAuthDataState(null);
-    navigate("/login");
-  }, [navigate]);
-
-  // Register the 401 handler with fetchHelper once on mount.
-  // This avoids a circular import while still allowing any fetch to trigger rotation.
-  useEffect(() => {
-    registerUnauthorizedHandler(handleUnauthorized);
-  }, [handleUnauthorized]);
-
   const getUsernameOrGuest = useCallback(() => {
     return authData?.username ?? EXPIRED_USER.username;
   }, [authData]);
@@ -93,7 +66,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthData,
         logout,
         getUsernameOrGuest,
-        handleUnauthorized,
         sessionLoading,
       }}
     >

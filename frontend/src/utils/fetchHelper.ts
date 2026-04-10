@@ -9,21 +9,14 @@ const BASE_OPTIONS = {
   headers: BASE_HEADERS,
 };
 
-// Lazily imported to avoid a circular dependency:
-// fetchHelper ← authService ← AuthContext ← fetchHelper
-let _handleUnauthorized: (() => Promise<void>) | null = null;
-
-export function registerUnauthorizedHandler(handler: () => Promise<void>) {
-  _handleUnauthorized = handler;
-}
-
 async function handleResponse<T>(res: Response): Promise<APIResponse<T>> {
   const data = await res.json().catch(() => ({}));
 
-  if (res.status === 401 && _handleUnauthorized) {
-    // Session invalidated (role change, reuse detected, expired).
-    // Delegate to AuthContext which will attempt rotation then re-login.
-    await _handleUnauthorized();
+  if (res.status === 401) {
+    // Session is genuinely over (revoked, reuse detected, user deleted).
+    // Token rotation is handled transparently by the server middleware so
+    // a 401 reaching the frontend means re-authentication is required.
+    window.location.href = "/login";
   }
 
   return {

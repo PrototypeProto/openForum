@@ -28,14 +28,6 @@ export async function logout(): Promise<APIResponse<{ message: string }>> {
   return postJSON<{ message: string }>(API.auth.logout, {});
 }
 
-export async function refreshToken(): Promise<
-  APIResponse<{ message: string }>
-> {
-  // The refresh_token cookie is sent automatically. The backend rotates
-  // the token pair and sets fresh cookies on success.
-  return postJSON<{ message: string }>(API.auth.refresh_token, {});
-}
-
 export async function getMe(): Promise<APIResponse<AuthenticatedUser>> {
   return getJSON<AuthenticatedUser>(API.auth.me);
 }
