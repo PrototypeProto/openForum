@@ -26,11 +26,14 @@ Routes excluded from rotation:
   logic and must not be intercepted.
 """
 
+import logging
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
+from src.config import Config
 from src.auth.utils import decode_token, seconds_until_expiry, create_access_token
 from src.auth.service import AuthService
 from src.auth.schemas import AccessTokenUserData
@@ -43,6 +46,8 @@ from src.db.redis_client import (
 )
 from src.db.main import get_session_context
 from src.auth.utils import REFRESH_TOKEN_EXPIRY_SECONDS
+
+logger = logging.getLogger(__name__)
 
 # Only attempt rotation when the refresh token has at least this much life left.
 # Below this threshold the session is nearly over — let the user re-authenticate.
@@ -88,7 +93,7 @@ class TokenRefreshMiddleware(BaseHTTPMiddleware):
                     # Token is valid — pass through normally
                     return await call_next(request)
             except Exception:
-                pass  # expired or invalid — fall through to rotation attempt
+                logger.debug("access token decode failed; will attempt rotation", exc_info=True)
 
         # Access token is absent, expired, or invalid.
         # Attempt silent rotation using the refresh token.
@@ -98,6 +103,7 @@ class TokenRefreshMiddleware(BaseHTTPMiddleware):
         try:
             refresh_data = decode_token(refresh_token)
         except Exception:
+            logger.debug("refresh token decode failed", exc_info=True)
             # Refresh token is also expired — pass through, let dep handle 401
             return await call_next(request)
 
@@ -169,6 +175,8 @@ class TokenRefreshMiddleware(BaseHTTPMiddleware):
             return response
 
         except Exception:
-            # Rotation failed for any reason — pass through and let the
-            # normal dependency chain handle the auth failure
+            # Rotation failed for any reason — log it loudly so silent bugs
+            # like the previous Config NameError can't hide. Then pass through
+            # and let the normal dependency chain handle the auth failure.
+            logger.exception("token rotation failed")
             return await call_next(request)

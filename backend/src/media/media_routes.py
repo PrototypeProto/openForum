@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import uuid4
 from fastapi import APIRouter, Depends, UploadFile, File, Query, status
 from fastapi.responses import FileResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -13,6 +14,7 @@ from src.exceptions import (
     FileNotFoundError,
     UnsupportedFileTypeError,
     BadRequestError,
+    FileTooLargeError,
 )
 import aiofiles
 
@@ -22,6 +24,8 @@ SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 MEDIA_DIR = Path(Config.MEDIA_DIR)
 MEDIA_LIMIT = 2
+MEDIA_MAX_SIZE = 100 * 1024 * 1024  # 100 MB hard cap on media uploads
+MEDIA_CHUNK = 1024 * 1024            # 1 MB streaming chunk
 
 MEDIA_TYPES = {
     ".mp4": "video/mp4",
@@ -31,6 +35,22 @@ MEDIA_TYPES = {
 }
 ALLOWED_EXTENSIONS = set(MEDIA_TYPES.keys())
 ALLOWED_MIME_TYPES = set(MEDIA_TYPES.values())
+
+
+def _sniff_extension(head: bytes) -> str | None:
+    """
+    Identify file type from its leading bytes. Returns the canonical
+    extension (with dot) or None if the bytes don't match the allowlist.
+    Never trust the client-supplied Content-Type or filename for this.
+    """
+    if head.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    # ISO-BMFF (mp4): bytes 4..8 are the major box type "ftyp"
+    if len(head) >= 12 and head[4:8] == b"ftyp":
+        return ".mp4"
+    return None
 
 
 @router.get("/list", response_model=PaginatedMedia)
@@ -67,15 +87,59 @@ async def upload_file(
     file: UploadFile = File(...),
     token_details: dict = require_admin,
 ):
-    if file.content_type not in ALLOWED_MIME_TYPES:
-        raise UnsupportedFileTypeError("Unsupported file type")
+    """
+    Admin-only media upload.
 
-    file_path: Path = MEDIA_DIR / file.filename
-    async with aiofiles.open(file_path, "wb") as f:
-        while chunk := await file.read(1024 * 1024):
-            await f.write(chunk)
+    Hardening notes:
+      - Original filename is NEVER joined onto the filesystem path. We
+        generate the stored name as `{uuid4}{sniffed_ext}`. This makes
+        path traversal structurally impossible.
+      - The client-sent Content-Type is ignored. We sniff the actual
+        leading bytes against an allowlist (jpg/png/mp4).
+      - Body is streamed in chunks; we abort the moment the running
+        size exceeds MEDIA_MAX_SIZE so a malicious client can't OOM us.
+      - On any failure mid-stream the partial file is removed.
+    """
+    # Read enough bytes to sniff the type. The first 1 MB chunk also
+    # becomes the first thing we write to disk so we don't double-buffer.
+    first_chunk = await file.read(MEDIA_CHUNK)
+    if not first_chunk:
+        raise BadRequestError("Empty file")
 
-    return {"filename": file.filename}
+    ext = _sniff_extension(first_chunk[:16])
+    if ext is None or ext not in ALLOWED_EXTENSIONS:
+        raise UnsupportedFileTypeError("Unsupported or unrecognized file type")
+
+    MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid4().hex}{ext}"
+    file_path = (MEDIA_DIR / stored_name).resolve()
+
+    # Belt-and-suspenders: a UUID hex can't escape the dir, but check anyway.
+    if not file_path.is_relative_to(MEDIA_DIR.resolve()):
+        raise InvalidPathError("Invalid file path")
+
+    total = 0
+    try:
+        async with aiofiles.open(file_path, "wb") as f:
+            await f.write(first_chunk)
+            total += len(first_chunk)
+            if total > MEDIA_MAX_SIZE:
+                raise FileTooLargeError("File exceeds media upload limit")
+
+            while chunk := await file.read(MEDIA_CHUNK):
+                total += len(chunk)
+                if total > MEDIA_MAX_SIZE:
+                    raise FileTooLargeError("File exceeds media upload limit")
+                await f.write(chunk)
+    except Exception:
+        # Clean up the partial file on any failure
+        try:
+            file_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
+
+    return {"filename": stored_name}
 
 
 @router.delete("/file/{filename}", status_code=status.HTTP_204_NO_CONTENT)

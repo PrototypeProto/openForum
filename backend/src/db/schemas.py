@@ -23,10 +23,19 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlmodel import SQLModel, Field
 
 from src.db.enums import MemberRoleEnum, DownloadPermission
+
+# ── Validation constants ──────────────────────────────────────────────────────
+USERNAME_PATTERN = r"^[A-Za-z0-9_-]{2,32}$"
+PASSWORD_MIN_LEN = 12
+PASSWORD_MAX_LEN = 128  # bcrypt cap is 72 bytes; this is a safe ceiling
+NICKNAME_MAX_LEN = 64
+REQUEST_MAX_LEN = 1_000
+THREAD_BODY_MAX_LEN = 20_000
+REPLY_BODY_MAX_LEN = 10_000
 
 # ── Tempfs constants ──────────────────────────────────────────────────────────
 # Kept here because TempFileCreate references them as Field defaults.
@@ -40,14 +49,17 @@ TEMPFS_DEFAULT_LIFETIME = 1_800  # 30 minutes
 
 
 class UserBaseModel(SQLModel):
-    username: str = Field(min_length=2, max_length=32)
-    email: Optional[str] = Field(default=None, max_length=64)
-    nickname: Optional[str] = Field(default=None)
+    username: str = Field(min_length=2, max_length=32, pattern=USERNAME_PATTERN)
+    email: Optional[EmailStr] = Field(default=None, max_length=254)
+    nickname: Optional[str] = Field(default=None, max_length=NICKNAME_MAX_LEN)
 
 
 class RegisterUserModel(UserBaseModel):
-    password: str = Field(nullable=False)
-    request: Optional[str]
+    password: str = Field(
+        min_length=PASSWORD_MIN_LEN,
+        max_length=PASSWORD_MAX_LEN,
+    )
+    request: Optional[str] = Field(default=None, max_length=REQUEST_MAX_LEN)
 
 
 class VerifyUserModel(SQLModel):
@@ -99,19 +111,22 @@ class UserStats(BaseModel):
 
 
 class UserBase(SQLModel):
-    username: str = Field(min_length=2, max_length=32)
-    email: Optional[str] = Field(default=None, max_length=64)
-    nickname: Optional[str] = Field(default=None)
+    username: str = Field(min_length=2, max_length=32, pattern=USERNAME_PATTERN)
+    email: Optional[EmailStr] = Field(default=None, max_length=254)
+    nickname: Optional[str] = Field(default=None, max_length=NICKNAME_MAX_LEN)
 
 
 class UserRegister(UserBase):
-    password: str
-    request: Optional[str] = None
+    password: str = Field(
+        min_length=PASSWORD_MIN_LEN,
+        max_length=PASSWORD_MAX_LEN,
+    )
+    request: Optional[str] = Field(default=None, max_length=REQUEST_MAX_LEN)
 
 
 class UserLogin(SQLModel):
-    username: str = Field(min_length=2, max_length=32)
-    password: str
+    username: str = Field(min_length=2, max_length=32, pattern=USERNAME_PATTERN)
+    password: str = Field(min_length=1, max_length=PASSWORD_MAX_LEN)
 
 
 class UserData(UserBase):
@@ -191,13 +206,13 @@ class ThreadWithVote(ThreadRead):
 
 
 class ThreadCreate(SQLModel):
-    title: str = Field(max_length=200)
-    body: str
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1, max_length=THREAD_BODY_MAX_LEN)
 
 
 class ThreadUpdate(SQLModel):
     title: Optional[str] = Field(default=None, max_length=200)
-    body: Optional[str] = None
+    body: Optional[str] = Field(default=None, max_length=THREAD_BODY_MAX_LEN)
     # Mod-only fields — ownership enforced in the route handler
     is_pinned: Optional[bool] = None
     pin_expires_at: Optional[datetime] = None
@@ -254,12 +269,12 @@ class PaginatedReplies(SQLModel):
 
 
 class ReplyCreate(SQLModel):
-    body: str
+    body: str = Field(min_length=1, max_length=REPLY_BODY_MAX_LEN)
     parent_reply_id: Optional[UUID] = None
 
 
 class ReplyUpdate(SQLModel):
-    body: str  # only the body is editable by the author
+    body: str = Field(min_length=1, max_length=REPLY_BODY_MAX_LEN)  # only the body is editable by the author
 
 
 # ── Vote ──────────────────────────────────────────────────────────────────────

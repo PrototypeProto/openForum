@@ -3,22 +3,24 @@ TempFS service — handles all business logic for /tempfs.
 Files are stored on disk at {TEMPFS_DIR}/{file_id} (no extension, UUID name only).
 Compression uses zstd; we only keep the compressed version if it is smaller.
 """
-import os
-import shutil
+import logging
+import re
+import unicodedata
 from datetime import datetime, timezone, timedelta
-from math import ceil
 from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
 
+import aiofiles
 import zstandard as zstd
 from fastapi import UploadFile
 from sqlmodel import select, func
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from src.auth.utils import generate_passwd_hash, verify_passwd
 from src.config import Config
-from src.db.enums import DownloadPermission, MemberRoleEnum
+from src.db.enums import DownloadPermission
 from src.db.models import TempFile, ExpiredFile
 from src.db.schemas import (
     TEMPFS_MIN_LIFETIME,
@@ -42,7 +44,6 @@ from src.tempfs.logger import (
     log_cleanup_delete_fail,
     log_cleanup_delete_ok,
 )
-from src.db.redis_client import get_user
 from src.exceptions import (
     BadRequestError,
     FileTooLargeError,
@@ -51,7 +52,6 @@ from src.exceptions import (
     NotFoundError,
     ForbiddenError,
     FileNotFoundError as AppFileNotFoundError,
-    InternalError,
 )
 
 TEMPFS_DIR = Path(Config.TEMPFS_DIR)
@@ -60,14 +60,58 @@ USER_QUOTA_BYTES = 5 * 1024 ** 3          # 5 GB per-user quota
 MAX_FILE_SIZE = 2 * 1024 ** 3        # 2 GB per file
 CHUNK = 1024 * 1024                  # 1 MB read chunks
 
+logger = logging.getLogger(__name__)
+
+# Characters that are safe in a downloaded filename. Anything else is stripped.
+_SAFE_FILENAME_RE = re.compile(r"[^\w\s.\-]", re.UNICODE)
+
+
+def _sanitize_filename(raw: str | None, max_len: int = 200) -> str:
+    """
+    Produce a safe filename from user input.
+
+    Rules:
+      - NFC-normalize unicode
+      - Strip path separators, control chars, RTL overrides
+      - Collapse whitespace
+      - Cap total length
+      - Fallback to 'unnamed' if nothing useful remains
+    """
+    if not raw:
+        return "unnamed"
+    name = unicodedata.normalize("NFC", raw)
+    # Strip path separators so no component can escape the directory
+    name = name.replace("/", "_").replace("\\", "_")
+    # Remove control characters (categories Cc, Cf — includes RTL overrides)
+    name = "".join(c for c in name if unicodedata.category(c) not in ("Cc", "Cf"))
+    # Remove anything not in our safe set
+    name = _SAFE_FILENAME_RE.sub("", name)
+    # Collapse whitespace
+    name = " ".join(name.split())
+    name = name.strip(". ")
+    if not name:
+        return "unnamed"
+    return name[:max_len]
+
 
 def _file_path(file_id: UUID) -> Path:
-    print(TEMPFS_DIR)
     return TEMPFS_DIR / str(file_id)
 
 
 def _ensure_dir() -> None:
     TEMPFS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _zstd_compress_file(src: Path, dst: Path, level: int = 3) -> None:
+    """
+    Stream-compress src → dst with zstd. Designed to be called via
+    run_in_threadpool so the event loop is never blocked, even on
+    multi-GB files. Both endpoints are real files on disk; no full
+    payload ever lives in memory.
+    """
+    cctx = zstd.ZstdCompressor(level=level)
+    with open(src, "rb") as fin, open(dst, "wb") as fout:
+        cctx.copy_stream(fin, fout)
 
 
 class TempFSService:
@@ -112,102 +156,145 @@ class TempFSService:
         lifetime = max(TEMPFS_MIN_LIFETIME, min(metadata.lifetime_seconds, TEMPFS_MAX_LIFETIME))
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=lifetime)
 
-        # Read full file into memory to get size before touching disk
-        # (We need size upfront to check quota; 2GB max is within acceptable RAM for a personal server)
-        raw: bytes = await file.read()
-        file_size = len(raw)
+        # ── Stream upload to a temporary raw file with running size cap ──
+        # We never hold the full payload in memory. The raw file is written
+        # first; quota checks run against its on-disk size; compression
+        # (if requested) happens file→file in a thread pool.
+        file_id = uuid4()
+        raw_path = TEMPFS_DIR / f"{file_id}.raw"
+        final_path = _file_path(file_id)
+        file_size = 0
 
-        if file_size > MAX_FILE_SIZE:
-            log_upload_fail(username, "file_too_large", {
-                "file_size": file_size,
-                "max_size": MAX_FILE_SIZE,
-            })
-            raise FileTooLargeError(f"File exceeds 2 GB limit ({self._bytes_to_MB(file_size)})")
+        try:
+            async with aiofiles.open(raw_path, "wb") as f:
+                while chunk := await file.read(CHUNK):
+                    file_size += len(chunk)
+                    if file_size > MAX_FILE_SIZE:
+                        log_upload_fail(username, "file_too_large", {
+                            "file_size": file_size,
+                            "max_size": MAX_FILE_SIZE,
+                        })
+                        raise FileTooLargeError(
+                            f"File exceeds 2 GB limit ({self._bytes_to_MB(file_size)})"
+                        )
+                    await f.write(chunk)
 
-        # Check global quota BEFORE writing anything
-        system_bytes_used = await self._used_bytes(session)
-        if system_bytes_used + file_size > TOTAL_SHARED_BYTES:
-            log_upload_fail(username, "quota_exceeded", {
-                "used_bytes": system_bytes_used,
-                "file_size": file_size,
-                "total_bytes_offered": TOTAL_SHARED_BYTES,
-            })
-            raise QuotaExceededError(
-                f"Upload would exceed global storage quota. "
-                f"Used: {self._bytes_to_MB(system_bytes_used)}, file: {self._bytes_to_MB(file_size)}, quota: {self._bytes_to_MB(TOTAL_SHARED_BYTES)}"
+            if file_size == 0:
+                raise BadRequestError("Empty file")
+
+            # ── Quota checks (against raw size; compression may shrink it) ──
+            system_bytes_used = await self._used_bytes(session)
+            if system_bytes_used + file_size > TOTAL_SHARED_BYTES:
+                log_upload_fail(username, "quota_exceeded", {
+                    "used_bytes": system_bytes_used,
+                    "file_size": file_size,
+                    "total_bytes_offered": TOTAL_SHARED_BYTES,
+                })
+                raise QuotaExceededError(
+                    f"Upload would exceed global storage quota. "
+                    f"Used: {self._bytes_to_MB(system_bytes_used)}, "
+                    f"file: {self._bytes_to_MB(file_size)}, "
+                    f"quota: {self._bytes_to_MB(TOTAL_SHARED_BYTES)}"
+                )
+
+            user_bytes_used = file_size + await self._user_used_bytes(uploader_id, session)
+            if user_bytes_used > USER_QUOTA_BYTES:
+                log_upload_fail(username, "quota_exceeded", {
+                    "used_bytes": user_bytes_used,
+                    "file_size": file_size,
+                    "quota": USER_QUOTA_BYTES,
+                })
+                raise QuotaExceededError(
+                    f"Upload would exceed assigned user storage quota. "
+                    f"Used: {self._bytes_to_MB(user_bytes_used)}, "
+                    f"file: {self._bytes_to_MB(file_size)}, "
+                    f"quota: {self._bytes_to_MB(USER_QUOTA_BYTES)}"
+                )
+
+            # ── Compression (file→file, off the event loop) ──
+            is_compressed = False
+            stored_size = file_size
+
+            if metadata.compress:
+                compressed_path = TEMPFS_DIR / f"{file_id}.zst"
+                try:
+                    await run_in_threadpool(
+                        _zstd_compress_file, raw_path, compressed_path
+                    )
+                    compressed_size = compressed_path.stat().st_size
+                    if compressed_size < file_size:
+                        # Compressed version wins — promote it, discard raw
+                        compressed_path.rename(final_path)
+                        raw_path.unlink(missing_ok=True)
+                        is_compressed = True
+                        stored_size = compressed_size
+                    else:
+                        # Compression didn't help — keep raw
+                        compressed_path.unlink(missing_ok=True)
+                        raw_path.rename(final_path)
+                except Exception:
+                    # Compression failed — keep the raw file
+                    compressed_path.unlink(missing_ok=True)
+                    raw_path.rename(final_path)
+                    logger.warning(
+                        "zstd compression failed for %s; storing uncompressed",
+                        file_id,
+                        exc_info=True,
+                    )
+            else:
+                raw_path.rename(final_path)
+
+            # ── Sanitize filename ──
+            safe_filename = _sanitize_filename(file.filename)
+
+            # Hash password if applicable
+            password_hash: Optional[str] = None
+            if perm == DownloadPermission.PASSWORD and metadata.password:
+                password_hash = generate_passwd_hash(metadata.password)
+
+            # Persist metadata
+            record = TempFile(
+                file_id=file_id,
+                uploader_id=uploader_id,
+                original_filename=safe_filename,
+                mime_type=file.content_type or "application/octet-stream",
+                original_size=file_size,
+                stored_size=stored_size,
+                is_compressed=is_compressed,
+                download_permission=perm,
+                password_hash=password_hash,
+                expires_at=expires_at,
+            )
+            session.add(record)
+            await session.commit()
+            await session.refresh(record)
+
+            new_used_bytes = await self._user_used_bytes(uploader_id, session)
+            log_upload_ok(
+                username, str(file_id), safe_filename,
+                file_size, stored_size, is_compressed, expires_at,
             )
 
-        # Check if user exceeds their own limit
-        user_bytes_used = file_size + await self._user_used_bytes(uploader_id, session)
-        if user_bytes_used > USER_QUOTA_BYTES:
-            log_upload_fail(username, "quota_exceeded", {
-                "used_bytes": user_bytes_used,
-                "file_size": file_size,
-                "quota": USER_QUOTA_BYTES,
-            })
-            raise QuotaExceededError(
-                f"Upload would exceed assigned user storage quota. "
-                f"Used: {self._bytes_to_MB(user_bytes_used)}, file: {self._bytes_to_MB(file_size)}, quota: {self._bytes_to_MB(USER_QUOTA_BYTES)}"
+            return TempFileUploadResponse(
+                file_id=file_id,
+                original_filename=record.original_filename,
+                original_size=file_size,
+                stored_size=stored_size,
+                is_compressed=is_compressed,
+                expires_at=expires_at,
+                download_permission=perm.value,
+                used_bytes=new_used_bytes,
+                remaining_bytes=USER_QUOTA_BYTES - new_used_bytes,
             )
 
-        # Attempt compression if requested
-        file_id = uuid4() # NOTE: Let DB handle uuid assignment
-        dest = _file_path(file_id)
-        is_compressed = False
-        stored_data = raw
-
-        if metadata.compress:
-            cctx = zstd.ZstdCompressor(level=3)
-            compressed = cctx.compress(raw)
-            if len(compressed) < file_size:
-                stored_data = compressed
-                is_compressed = True
-
-        stored_size = len(stored_data)
-
-        # Write to disk
-        dest.write_bytes(stored_data)
-
-        # Hash password if applicable AND when PASSWORD protected (ignores password w/ other options)
-        password_hash: Optional[str] = None
-        if perm == DownloadPermission.PASSWORD and metadata.password:
-            password_hash = generate_passwd_hash(metadata.password)
-
-
-        # Persist metadata
-        record = TempFile(
-            file_id=file_id,
-            uploader_id=uploader_id,
-            original_filename=file.filename or "unnamed",
-            mime_type=file.content_type or "application/octet-stream",
-            original_size=file_size,
-            stored_size=stored_size,
-            is_compressed=is_compressed,
-            download_permission=perm,
-            password_hash=password_hash,
-            expires_at=expires_at,
-        )
-        session.add(record)
-        await session.commit()
-        await session.refresh(record)
-
-        new_used_bytes = await self._user_used_bytes(uploader_id, session)
-        log_upload_ok(
-            username, str(file_id), file.filename or "unnamed",
-            file_size, stored_size, is_compressed, expires_at,
-        )
-
-        return TempFileUploadResponse(
-            file_id=file_id,
-            original_filename=record.original_filename,
-            original_size=file_size,
-            stored_size=stored_size,
-            is_compressed=is_compressed,
-            expires_at=expires_at,
-            download_permission=perm.value,
-            used_bytes=new_used_bytes,
-            remaining_bytes=USER_QUOTA_BYTES - new_used_bytes,
-        )
+        except Exception:
+            # On ANY failure, clean up partial files so we don't leak disk space
+            for p in (raw_path, final_path, TEMPFS_DIR / f"{file_id}.zst"):
+                try:
+                    p.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            raise
 
     # list unexpired files for this user
     async def list_user_files(
@@ -256,10 +343,9 @@ class TempFSService:
         session: AsyncSession,
     ) -> FileReadModel:
         """
-        Validates access and returns (disk_path, original_filename, mime_type, serve_compressed).
-        Raises ValueError with a reason string on any access failure.
-        The caller should catch ValueError and return 404 (not 403, to avoid leaking existence).
-        TODO NOTE: want_compressed does nothing. Ensure that a compressed file is decompressed when want_compressed=false, or a decompressed file is compressed if want_compressed=True
+        Validates access and returns a FileReadModel with disk path and metadata.
+        Raises AppFileNotFoundError on any access failure — the caller returns 404
+        uniformly (not 403) to avoid leaking file existence.
         """
         now = datetime.now(timezone.utc)
         record: TempFile = await session.get(TempFile, file_id)
@@ -350,18 +436,19 @@ class TempFSService:
         leaves an orphan row in temp_file (recoverable) rather than a dangling DB row.
         """
         disk_path = _file_path(record.file_id)
-        print(disk_path)
         try:
             disk_path.unlink(missing_ok=True)
-            if disk_path.exists():
-                raise InternalError("Deleted file still exists on disk")
             log_cleanup_delete_ok(record.file_id)
         except OSError as e:
+            # Real filesystem error (permissions, EBUSY, etc.) — log loudly
+            # but still archive the metadata so the DB stays consistent.
+            # The orphan bytes on disk are preferable to a stale temp_file row.
+            logger.error(
+                "disk delete failed for %s: %s — archiving metadata anyway",
+                record.file_id,
+                e,
+            )
             log_cleanup_delete_fail(record.file_id, e)
-            pass  # already gone; still archive the metadata
-        except Exception as e:
-            log_cleanup_delete_fail(record.file_id, e)
-            pass  # already gone; still archive the metadata
             
 
         expired = ExpiredFile(
@@ -384,7 +471,7 @@ class TempFSService:
 
     async def get_public_info(
         self, file_id: UUID, session: AsyncSession
-    ) -> TempFilePublicInfo:
+    ) -> Optional[TempFilePublicInfo]:
         """
         Returns public metadata for the download page.
         Returns None if the file doesn't exist or has expired.
