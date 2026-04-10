@@ -4,3 +4,8 @@ __pycache__
 compose.yaml
 Dockerfile
 portfolio.rnote
+
+.pytest_cache
+tests
+pytest.ini
+.env.test

@@ -87,3 +87,5 @@ backend/logs/tempfs/*
 backend/tempfs_storage/*
 backend/shared_media/*
 other.md
+
+.pytest_cache
