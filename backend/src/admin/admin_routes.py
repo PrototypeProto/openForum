@@ -7,7 +7,7 @@ from src.auth.dependencies import require_admin
 from src.auth.service import AuthService
 from src.db.enums import MemberRoleEnum
 from src.db.main import get_session
-from src.db.schemas import *
+from src.db.schemas import PendingUserRead, RejectedUserRead, UserRead, UserStats
 from src.exceptions import (
     AlreadyVerifiedError,
     InternalError,

@@ -1,22 +1,26 @@
+import contextlib
+from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
-from fastapi import APIRouter, Depends, UploadFile, File, Query, status
+
+import aiofiles
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
-from src.db.main import get_session
-from src.auth.dependencies import require_user, require_admin
-from .service import MediaService
+
+from src.auth.dependencies import require_admin, require_user
 from src.config import Config
-from pathlib import Path
+from src.db.main import get_session
 from src.db.schemas import PaginatedMedia
 from src.exceptions import (
-    InvalidPathError,
-    FileNotFoundError,
-    UnsupportedFileTypeError,
     BadRequestError,
+    FileNotFoundError,
     FileTooLargeError,
+    InvalidPathError,
+    UnsupportedFileTypeError,
 )
-import aiofiles
+
+from .service import MediaService
 
 router = APIRouter(prefix="/media", tags=["media"])
 media_service = MediaService()
@@ -25,7 +29,7 @@ SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 MEDIA_DIR = Path(Config.MEDIA_DIR)
 MEDIA_LIMIT = 2
 MEDIA_MAX_SIZE = 100 * 1024 * 1024  # 100 MB hard cap on media uploads
-MEDIA_CHUNK = 1024 * 1024            # 1 MB streaming chunk
+MEDIA_CHUNK = 1024 * 1024  # 1 MB streaming chunk
 
 MEDIA_TYPES = {
     ".mp4": "video/mp4",
@@ -133,10 +137,8 @@ async def upload_file(
                 await f.write(chunk)
     except Exception:
         # Clean up the partial file on any failure
-        try:
+        with contextlib.suppress(OSError):
             file_path.unlink(missing_ok=True)
-        except OSError:
-            pass
         raise
 
     return {"filename": stored_name}

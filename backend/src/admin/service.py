@@ -11,7 +11,7 @@ from src.db.models import (
     User,
 )
 from src.db.redis_client import add_registered_user, get_user
-from src.db.schemas import *
+from src.db.schemas import PendingUserRead, RejectedUserRead, UserRead, UserStats
 
 auth_service = AuthService()
 

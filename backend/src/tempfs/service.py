@@ -4,6 +4,7 @@ Files are stored on disk at {TEMPFS_DIR}/{file_id} (no extension, UUID name only
 Compression uses zstd; we only keep the compressed version if it is smaller.
 """
 
+import contextlib
 import logging
 import re
 import unicodedata
@@ -20,7 +21,7 @@ from starlette.concurrency import run_in_threadpool
 
 from src.auth.utils import generate_passwd_hash, verify_passwd
 from src.config import Config
-from src.db.enums import DownloadPermission
+from src.db.enums import DownloadPermission, MemberRoleEnum
 from src.db.models import ExpiredFile, TempFile
 from src.db.schemas import (
     TEMPFS_MAX_LIFETIME,
@@ -129,7 +130,7 @@ class TempFSService:
         return result.one() or 0
 
     def _is_vip_or_admin(self, role: str) -> bool:
-        return role in (MemberRoleEnum.VIP.value, MemberRoleEnum.ADMIN.value)
+        return role in (MemberRoleEnum.VIP, MemberRoleEnum.ADMIN)
 
     def _bytes_to_MB(self, file_size: int) -> str:
         return f"{file_size / 1024 / 1024} MB"
@@ -304,10 +305,8 @@ class TempFSService:
         except Exception:
             # On ANY failure, clean up partial files so we don't leak disk space
             for p in (raw_path, final_path, TEMPFS_DIR / f"{file_id}.zst"):
-                try:
+                with contextlib.suppress(OSError):
                     p.unlink(missing_ok=True)
-                except OSError:
-                    pass
             raise
 
     # list unexpired files for this user

@@ -10,7 +10,7 @@ from sqlmodel import Column, Field, SQLModel
 from src.db.enums import DownloadPermission, MemberRoleEnum
 
 """##################################
-    NOTE: START REGISTRATION DATA 
+    NOTE: START REGISTRATION DATA
 ##################################"""
 
 
@@ -209,12 +209,12 @@ class RejectedUser(SQLModel, table=True):
 
 
 """##################################
-    NOTE: END REGISTRATION DATA 
+    NOTE: END REGISTRATION DATA
 ##################################"""
 
 
 """##################################
-    NOTE: START FORUM DATA 
+    NOTE: START FORUM DATA
 ##################################"""
 
 
@@ -522,11 +522,11 @@ class ReplyVote(SQLModel, table=True):
 
 
 """##################################
-    NOTE: END FORUM DATA 
+    NOTE: END FORUM DATA
 ##################################"""
 
 """##################################
-    NOTE: START TEMPFS DATA 
+    NOTE: START TEMPFS DATA
 ##################################"""
 
 
@@ -657,5 +657,5 @@ class ExpiredFile(SQLModel, table=True):
 
 
 """##################################
-    NOTE: END TEMPFS DATA 
+    NOTE: END TEMPFS DATA
 ##################################"""
