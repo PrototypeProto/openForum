@@ -1,36 +1,37 @@
 import logging
 
-from fastapi import Request, status, Depends
+from fastapi import Depends, Request
 from fastapi.openapi.models import APIKey, APIKeyIn
 from fastapi.security.base import SecurityBase
-from .utils import decode_token, seconds_until_expiry
-from src.db.redis_client import (
-    token_in_blocklist,
-    add_jti_to_blocklist,
-    get_user,
-    add_registered_user,
-)
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
 from src.db.enums import MemberRoleEnum
 from src.db.main import get_session
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
 from src.db.models import User
-
-logger = logging.getLogger(__name__)
+from src.db.redis_client import (
+    add_jti_to_blocklist,
+    add_registered_user,
+    get_user,
+    token_in_blocklist,
+)
 from src.exceptions import (
     ForbiddenError,
-    UnauthorizedError,
-    NotFoundError,
     InsufficientPermissionsError,
+    NotFoundError,
     RoleChangedError,
     SessionRevokedError,
 )
-from typing import List
+
+from .utils import decode_token, seconds_until_expiry
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
 # Base cookie bearer
 # ---------------------------------------------------------------------------
+
 
 class CookieTokenBearer(SecurityBase):
     """
@@ -85,13 +86,13 @@ class CookieTokenBearer(SecurityBase):
                 raise SessionRevokedError("This token has been revoked. Please log in again.")
         except SessionRevokedError:
             raise
-        except Exception:
+        except Exception as e:
             # Redis is down — fail closed for the blocklist check because
             # allowing a revoked token through is a security hole.
             logger.error("Redis blocklist check failed — denying request", exc_info=True)
             if not self.auto_error:
                 return None
-            raise ForbiddenError("Authentication service temporarily unavailable")
+            raise ForbiddenError("Authentication service temporarily unavailable") from e
 
         self._verify_token_type(token_data)
 
@@ -104,9 +105,7 @@ class CookieTokenBearer(SecurityBase):
             try:
                 live_role = await get_user(token_data["user"]["username"])
                 if live_role is not None and live_role.value != token_role:
-                    await add_jti_to_blocklist(
-                        token_data["jti"], seconds_until_expiry(token_data)
-                    )
+                    await add_jti_to_blocklist(token_data["jti"], seconds_until_expiry(token_data))
                     raise RoleChangedError()
             except RoleChangedError:
                 raise
@@ -144,6 +143,7 @@ class RefreshTokenBearer(CookieTokenBearer):
 # Role checker
 # ---------------------------------------------------------------------------
 
+
 class RoleChecker:
     """
     FastAPI dependency that verifies the caller has one of the allowed roles.
@@ -156,7 +156,7 @@ class RoleChecker:
     without a second Depends call.
     """
 
-    def __init__(self, allowed_roles: List[MemberRoleEnum]) -> None:
+    def __init__(self, allowed_roles: list[MemberRoleEnum]) -> None:
         self.allowed_roles = allowed_roles
 
     async def __call__(
@@ -178,9 +178,7 @@ class RoleChecker:
 
         return token_details
 
-    async def _resolve_role(
-        self, username: str, session: AsyncSession
-    ) -> MemberRoleEnum | None:
+    async def _resolve_role(self, username: str, session: AsyncSession) -> MemberRoleEnum | None:
         # Try Redis cache first
         try:
             role = await get_user(username)
@@ -211,14 +209,10 @@ class RoleChecker:
 # ---------------------------------------------------------------------------
 
 #: Any verified user (user, vip, or admin)
-require_user = Depends(
-    RoleChecker([MemberRoleEnum.USER, MemberRoleEnum.VIP, MemberRoleEnum.ADMIN])
-)
+require_user = Depends(RoleChecker([MemberRoleEnum.USER, MemberRoleEnum.VIP, MemberRoleEnum.ADMIN]))
 
 #: VIP or admin (e.g. file upload)
-require_vip = Depends(
-    RoleChecker([MemberRoleEnum.VIP, MemberRoleEnum.ADMIN])
-)
+require_vip = Depends(RoleChecker([MemberRoleEnum.VIP, MemberRoleEnum.ADMIN]))
 
 #: Admin only
 require_admin = Depends(RoleChecker([MemberRoleEnum.ADMIN]))

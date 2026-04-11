@@ -11,33 +11,26 @@ Covers:
   POST /auth/signup         — duplicate username/email rejection
 """
 
-import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.db.enums import MemberRoleEnum
 from src.auth.utils import decode_token
-from src.db.redis_client import token_in_blocklist, get_refresh_token_owner
-
+from src.db.enums import MemberRoleEnum
+from src.db.redis_client import get_refresh_token_owner, token_in_blocklist
 from tests.conftest import (
-    make_user,
+    auth_cookies,
     make_access_token,
     make_refresh_token,
-    auth_cookies,
+    make_user,
 )
-
 
 # ── Login ─────────────────────────────────────────────────────────────────────
 
 
 class TestLogin:
-    async def test_login_success_sets_cookies(
-        self, client: AsyncClient, session: AsyncSession
-    ):
-        user = await make_user(session, username="loginuser", password="pass123")
-        r = await client.post(
-            "/auth/login", json={"username": "loginuser", "password": "pass123"}
-        )
+    async def test_login_success_sets_cookies(self, client: AsyncClient, session: AsyncSession):
+        await make_user(session, username="loginuser", password="pass123")  # noqa: S106
+        r = await client.post("/auth/login", json={"username": "loginuser", "password": "pass123"})
 
         assert r.status_code == 200
         assert "access_token" in r.cookies
@@ -46,12 +39,13 @@ class TestLogin:
     async def test_login_success_returns_user_with_role(
         self, client: AsyncClient, session: AsyncSession
     ):
-        user = await make_user(
-            session, username="roleuser", role=MemberRoleEnum.VIP, password="pass"
+        await make_user(
+            session,
+            username="roleuser",
+            role=MemberRoleEnum.VIP,
+            password="pass",  # noqa: S106
         )
-        r = await client.post(
-            "/auth/login", json={"username": "roleuser", "password": "pass"}
-        )
+        r = await client.post("/auth/login", json={"username": "roleuser", "password": "pass"})
 
         assert r.status_code == 200
         body = r.json()
@@ -63,25 +57,19 @@ class TestLogin:
     async def test_login_wrong_password_returns_403(
         self, client: AsyncClient, session: AsyncSession
     ):
-        await make_user(session, username="wrongpass", password="correct")
-        r = await client.post(
-            "/auth/login", json={"username": "wrongpass", "password": "wrong"}
-        )
+        await make_user(session, username="wrongpass", password="correct")  # noqa: S106
+        r = await client.post("/auth/login", json={"username": "wrongpass", "password": "wrong"})
         assert r.status_code == 403
 
     async def test_login_unknown_user_returns_403(self, client: AsyncClient):
-        r = await client.post(
-            "/auth/login", json={"username": "nobody", "password": "x"}
-        )
+        r = await client.post("/auth/login", json={"username": "nobody", "password": "x"})
         assert r.status_code == 403
 
     async def test_login_stores_refresh_jti_in_redis(
         self, client: AsyncClient, session: AsyncSession
     ):
-        await make_user(session, username="jtiuser", password="pass")
-        r = await client.post(
-            "/auth/login", json={"username": "jtiuser", "password": "pass"}
-        )
+        await make_user(session, username="jtiuser", password="pass")  # noqa: S106
+        r = await client.post("/auth/login", json={"username": "jtiuser", "password": "pass"})
 
         refresh_token = r.cookies.get("refresh_token")
         assert refresh_token is not None
@@ -90,13 +78,9 @@ class TestLogin:
         owner = await get_refresh_token_owner(token_data["jti"])
         assert owner == "jtiuser"
 
-    async def test_login_token_has_no_role_claim(
-        self, client: AsyncClient, session: AsyncSession
-    ):
-        await make_user(session, username="norole", password="pass")
-        r = await client.post(
-            "/auth/login", json={"username": "norole", "password": "pass"}
-        )
+    async def test_login_token_has_no_role_claim(self, client: AsyncClient, session: AsyncSession):
+        await make_user(session, username="norole", password="pass")  # noqa: S106
+        r = await client.post("/auth/login", json={"username": "norole", "password": "pass"})
 
         access_token = r.cookies.get("access_token")
         token_data = decode_token(access_token)
@@ -113,9 +97,7 @@ class TestLogout:
         r = await client.post("/auth/logout", cookies=auth_cookies(token))
         assert r.status_code == 200
 
-    async def test_logout_blocklists_access_jti(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_logout_blocklists_access_jti(self, client: AsyncClient, session: AsyncSession):
         user = await make_user(session)
         token = make_access_token(user)
         jti = decode_token(token)["jti"]
@@ -123,9 +105,7 @@ class TestLogout:
         await client.post("/auth/logout", cookies=auth_cookies(token))
         assert await token_in_blocklist(jti) is True
 
-    async def test_logout_clears_cookies(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_logout_clears_cookies(self, client: AsyncClient, session: AsyncSession):
         user = await make_user(session)
         token = make_access_token(user)
         r = await client.post("/auth/logout", cookies=auth_cookies(token))
@@ -133,9 +113,7 @@ class TestLogout:
         # delete_cookie sets Max-Age=0 — httpx won't show these in r.cookies.
         # Use multi_items() to get all set-cookie headers since httpx returns
         # them as separate entries.
-        all_set_cookie = " ".join(
-            v for k, v in r.headers.multi_items() if k == "set-cookie"
-        )
+        all_set_cookie = " ".join(v for k, v in r.headers.multi_items() if k == "set-cookie")
         assert "access_token" in all_set_cookie
         assert "refresh_token" in all_set_cookie
         assert "Max-Age=0" in all_set_cookie
@@ -175,9 +153,7 @@ class TestLogout:
 
 
 class TestRefreshToken:
-    async def test_rotation_issues_new_cookies(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_rotation_issues_new_cookies(self, client: AsyncClient, session: AsyncSession):
         user = await make_user(session, username="rotateuser")
         refresh = await make_refresh_token(user)
         access = make_access_token(user)
@@ -276,9 +252,7 @@ class TestRefreshToken:
 
 
 class TestGetMe:
-    async def test_me_returns_user_data(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_me_returns_user_data(self, client: AsyncClient, session: AsyncSession):
         user = await make_user(session, username="meuser", role=MemberRoleEnum.ADMIN)
         token = make_access_token(user)
 
@@ -293,9 +267,7 @@ class TestGetMe:
         r = await client.get("/auth/me")
         assert r.status_code == 403
 
-    async def test_me_role_reflects_db_not_token(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_me_role_reflects_db_not_token(self, client: AsyncClient, session: AsyncSession):
         """
         Even if the token was issued when the user was a USER, /me should
         return the current DB role (ADMIN in this case, set directly on the row).

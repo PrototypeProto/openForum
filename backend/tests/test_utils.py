@@ -5,22 +5,21 @@ Pure unit tests for src/auth/utils.py.
 No I/O, no DB, no Redis — these run in microseconds.
 """
 
-import time
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from src.auth.utils import (
-    generate_passwd_hash,
-    verify_passwd,
-    create_access_token,
-    decode_token,
-    seconds_until_expiry,
     ACCESS_TOKEN_EXPIRY_SECONDS,
     REFRESH_TOKEN_EXPIRY_SECONDS,
+    create_access_token,
+    decode_token,
+    generate_passwd_hash,
+    seconds_until_expiry,
+    verify_passwd,
 )
 
-
 # ── Password hashing ──────────────────────────────────────────────────────────
+
 
 class TestPasswordHashing:
     def test_hash_is_not_plaintext(self):
@@ -84,23 +83,23 @@ class TestCreateAccessToken:
         assert decode_token(t1)["jti"] != decode_token(t2)["jti"]
 
     def test_token_has_iat(self):
-        before = int(datetime.now(timezone.utc).timestamp())
+        before = int(datetime.now(UTC).timestamp())
         token = create_access_token(user_data=USER_DATA)
-        after = int(datetime.now(timezone.utc).timestamp())
+        after = int(datetime.now(UTC).timestamp())
         iat = decode_token(token)["iat"]
         assert before <= iat <= after
 
     def test_custom_expiry_respected(self):
         token = create_access_token(user_data=USER_DATA, expiry_seconds=120)
         data = decode_token(token)
-        now = int(datetime.now(timezone.utc).timestamp())
+        now = int(datetime.now(UTC).timestamp())
         # exp should be approximately now + 120s (allow 5s drift)
         assert abs(data["exp"] - (now + 120)) < 5
 
     def test_default_access_expiry(self):
         token = create_access_token(user_data=USER_DATA)
         data = decode_token(token)
-        now = int(datetime.now(timezone.utc).timestamp())
+        now = int(datetime.now(UTC).timestamp())
         assert abs(data["exp"] - (now + ACCESS_TOKEN_EXPIRY_SECONDS)) < 5
 
     def test_role_not_in_payload(self):
@@ -127,12 +126,13 @@ class TestDecodeToken:
         header_b64, payload_b64, sig_b64 = token.split(".")
         mid = len(sig_b64) // 2
         flipped_char = "A" if sig_b64[mid] != "A" else "B"
-        tampered_sig = sig_b64[:mid] + flipped_char + sig_b64[mid + 1:]
+        tampered_sig = sig_b64[:mid] + flipped_char + sig_b64[mid + 1 :]
         tampered = f"{header_b64}.{payload_b64}.{tampered_sig}"
         assert decode_token(tampered) is None
 
 
 # ── seconds_until_expiry ──────────────────────────────────────────────────────
+
 
 class TestSecondsUntilExpiry:
     def test_future_token_returns_positive(self):
@@ -143,7 +143,7 @@ class TestSecondsUntilExpiry:
 
     def test_expired_token_returns_zero(self):
         # Manually craft a payload with exp in the past
-        past_exp = int((datetime.now(timezone.utc) - timedelta(seconds=100)).timestamp())
+        past_exp = int((datetime.now(UTC) - timedelta(seconds=100)).timestamp())
         token_data = {"exp": past_exp}
         assert seconds_until_expiry(token_data) == 0
 

@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional
 from enum import Enum
 
 
@@ -19,4 +18,4 @@ class AccessTokenUserData(BaseModel):
 
     user_id: str
     username: str
-    nickname: Optional[str]
+    nickname: str | None

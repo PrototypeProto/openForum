@@ -3,7 +3,7 @@
 VIP and Admin only for upload/list/storage. Download access depends on file permission setting.
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
 from urllib.parse import quote
 from uuid import UUID
 
@@ -12,28 +12,28 @@ from fastapi import APIRouter, Depends, File, Form, Header, Query, UploadFile, s
 from fastapi.responses import StreamingResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from src.admin.service import AdminService
 from src.auth.dependencies import (
+    AccessTokenBearer,
     require_user,
     require_vip,
-    AccessTokenBearer,
 )
-from src.exceptions import NotFoundError
-from src.rate_limit import rate_limit
 from src.auth.service import AuthService
-from src.admin.service import AdminService
 from src.db.enums import DownloadPermission
 from src.db.main import get_session
 from src.db.schemas import (
-    StorageStatusRead,
-    TempFileCreate,
-    TempFileRead,
-    TempFileUploadResponse,
-    FileReadModel,
-    TempFilePublicInfo,
+    TEMPFS_DEFAULT_LIFETIME,
     TEMPFS_MAX_LIFETIME,
     TEMPFS_MIN_LIFETIME,
-    TEMPFS_DEFAULT_LIFETIME,
+    FileReadModel,
+    StorageStatusRead,
+    TempFileCreate,
+    TempFilePublicInfo,
+    TempFileRead,
+    TempFileUploadResponse,
 )
+from src.exceptions import NotFoundError
+from src.rate_limit import rate_limit
 from src.tempfs.service import TempFSService
 
 router = APIRouter(prefix="/tempfs", tags=["tempfs"])
@@ -57,10 +57,7 @@ def _content_disposition(filename: str) -> str:
     ascii_safe = ascii_safe.replace('"', "_")
     # RFC 5987 percent-encoded UTF-8 form
     utf8_encoded = quote(filename, safe="")
-    return (
-        f'attachment; filename="{ascii_safe}"; '
-        f"filename*=UTF-8''{utf8_encoded}"
-    )
+    return f"attachment; filename=\"{ascii_safe}\"; filename*=UTF-8''{utf8_encoded}"
 
 
 @router.post(
@@ -72,7 +69,7 @@ async def upload_file(
     session: SessionDependency,
     file: UploadFile = File(...),
     download_permission: DownloadPermission = Form(default=DownloadPermission.PUBLIC),
-    password: Optional[str] = Form(default=None),
+    password: str | None = Form(default=None),
     lifetime_seconds: int = Form(
         default=TEMPFS_DEFAULT_LIFETIME, ge=TEMPFS_MIN_LIFETIME, le=TEMPFS_MAX_LIFETIME
     ),
@@ -148,7 +145,7 @@ async def download_file(
     file_id: UUID,
     session: SessionDependency,
     want_compressed: bool = Query(default=False),
-    x_file_password: Optional[str] = Header(default=None),
+    x_file_password: str | None = Header(default=None),
     token_details: dict = optional_token_bearer,
 ):
     """
@@ -166,8 +163,8 @@ async def download_file(
     Auth token is optional — passed if the user is logged in.
     Always returns 404 on any access failure to avoid leaking file existence.
     """
-    requester_id: Optional[UUID] = None
-    requester_username: Optional[str] = None
+    requester_id: UUID | None = None
+    requester_username: str | None = None
 
     if token_details and await auth_service.is_valid_user_token(token_details, session):
         requester_id = UUID(token_details["user"]["user_id"])
@@ -200,8 +197,7 @@ async def download_file(
         def _iter_compress():
             cctx = zstd.ZstdCompressor(level=3)
             with open(file.disk_path, "rb") as f:
-                for chunk in cctx.read_to_iter(f):
-                    yield chunk
+                yield from cctx.read_to_iter(f)
 
         return StreamingResponse(
             _iter_compress(),
@@ -213,10 +209,9 @@ async def download_file(
 
         def _iter_decompress():
             dctx = zstd.ZstdDecompressor()
-            with open(file.disk_path, "rb") as f:
-                with dctx.stream_reader(f) as reader:
-                    while chunk := reader.read(1024 * 1024):
-                        yield chunk
+            with open(file.disk_path, "rb") as f, dctx.stream_reader(f) as reader:
+                while chunk := reader.read(1024 * 1024):
+                    yield chunk
 
         return StreamingResponse(
             _iter_decompress(),

@@ -23,19 +23,19 @@ by Postgres triggers that don't run under create_all. Tests that assert on
 those counters are marked @pytest.mark.triggers and skipped by default.
 """
 
-import pytest
 from uuid import uuid4
+
+import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.db.enums import MemberRoleEnum
-from src.db.models import TopicGroup, Topic, Thread, Reply
+from src.db.models import Reply, Thread, Topic, TopicGroup
 from src.db.redis_client import add_registered_user
-
-from tests.conftest import make_user, make_access_token, auth_cookies
-
+from tests.conftest import auth_cookies, make_access_token, make_user
 
 # ── Forum data factories ──────────────────────────────────────────────────────
+
 
 async def make_topic_group(session: AsyncSession, *, name: str = None) -> TopicGroup:
     group = TopicGroup(name=name or f"Group {uuid4().hex[:6]}", display_order=0)
@@ -121,6 +121,7 @@ async def user_with_cookies(session, role=MemberRoleEnum.USER, username=None):
 
 # ── GET /forum/groups ─────────────────────────────────────────────────────────
 
+
 class TestListGroups:
     async def test_returns_groups(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await user_with_cookies(session)
@@ -137,6 +138,7 @@ class TestListGroups:
 
 
 # ── GET /forum/topics ─────────────────────────────────────────────────────────
+
 
 class TestListTopics:
     async def test_returns_topics(self, client: AsyncClient, session: AsyncSession):
@@ -155,10 +157,9 @@ class TestListTopics:
 
 # ── GET /forum/topics/{id}/threads ────────────────────────────────────────────
 
+
 class TestListThreads:
-    async def test_returns_empty_for_new_topic(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_returns_empty_for_new_topic(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
 
@@ -169,13 +170,15 @@ class TestListThreads:
         assert body["total"] == 0
         assert body["pages"] == 1
 
-    async def test_returns_threads_in_topic(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_returns_threads_in_topic(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
-        await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id, title="Alpha Thread")
-        await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id, title="Beta Thread")
+        await make_thread(
+            session, topic_id=topic.topic_id, author_id=user.user_id, title="Alpha Thread"
+        )
+        await make_thread(
+            session, topic_id=topic.topic_id, author_id=user.user_id, title="Beta Thread"
+        )
 
         r = await client.get(f"/forum/topics/{topic.topic_id}/threads", cookies=cookies)
         assert r.status_code == 200
@@ -183,44 +186,51 @@ class TestListThreads:
         assert "Alpha Thread" in titles
         assert "Beta Thread" in titles
 
-    async def test_deleted_threads_excluded(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_deleted_threads_excluded(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
-        await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id,
-                          title="Visible", is_deleted=False)
-        await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id,
-                          title="Gone", is_deleted=True)
+        await make_thread(
+            session,
+            topic_id=topic.topic_id,
+            author_id=user.user_id,
+            title="Visible",
+            is_deleted=False,
+        )
+        await make_thread(
+            session, topic_id=topic.topic_id, author_id=user.user_id, title="Gone", is_deleted=True
+        )
 
         r = await client.get(f"/forum/topics/{topic.topic_id}/threads", cookies=cookies)
         titles = [t["title"] for t in r.json()["items"]]
         assert "Visible" in titles
         assert "Gone" not in titles
 
-    async def test_pinned_threads_come_first(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_pinned_threads_come_first(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
-        await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id,
-                          title="Normal", is_pinned=False)
-        await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id,
-                          title="Pinned", is_pinned=True)
+        await make_thread(
+            session,
+            topic_id=topic.topic_id,
+            author_id=user.user_id,
+            title="Normal",
+            is_pinned=False,
+        )
+        await make_thread(
+            session, topic_id=topic.topic_id, author_id=user.user_id, title="Pinned", is_pinned=True
+        )
 
         r = await client.get(f"/forum/topics/{topic.topic_id}/threads", cookies=cookies)
         items = r.json()["items"]
         assert items[0]["title"] == "Pinned"
 
-    async def test_unknown_topic_returns_404(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_unknown_topic_returns_404(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await user_with_cookies(session)
         r = await client.get(f"/forum/topics/{uuid4()}/threads", cookies=cookies)
         assert r.status_code == 404
 
 
 # ── POST /forum/topics/{id}/threads ──────────────────────────────────────────
+
 
 class TestCreateThread:
     async def test_creates_thread(self, client: AsyncClient, session: AsyncSession):
@@ -237,9 +247,7 @@ class TestCreateThread:
         assert body["title"] == "My New Thread"
         assert body["author_username"] == user.username
 
-    async def test_locked_topic_returns_403(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_locked_topic_returns_403(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await user_with_cookies(session)
         topic = await make_topic(session, is_locked=True)
 
@@ -250,9 +258,7 @@ class TestCreateThread:
         )
         assert r.status_code == 403
 
-    async def test_unknown_topic_returns_404(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_unknown_topic_returns_404(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await user_with_cookies(session)
         r = await client.post(
             f"/forum/topics/{uuid4()}/threads",
@@ -261,9 +267,7 @@ class TestCreateThread:
         )
         assert r.status_code == 404
 
-    async def test_unauthenticated_returns_403(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_unauthenticated_returns_403(self, client: AsyncClient, session: AsyncSession):
         topic = await make_topic(session)
         r = await client.post(
             f"/forum/topics/{topic.topic_id}/threads",
@@ -271,9 +275,7 @@ class TestCreateThread:
         )
         assert r.status_code == 403
 
-    async def test_title_too_long_returns_422(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_title_too_long_returns_422(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         r = await client.post(
@@ -286,10 +288,9 @@ class TestCreateThread:
 
 # ── PATCH /forum/threads/{id} ─────────────────────────────────────────────────
 
+
 class TestUpdateThread:
-    async def test_author_can_edit_title_and_body(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_author_can_edit_title_and_body(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id)
@@ -317,9 +318,7 @@ class TestUpdateThread:
         )
         assert r.status_code == 403
 
-    async def test_admin_can_edit_any_thread(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_admin_can_edit_any_thread(self, client: AsyncClient, session: AsyncSession):
         author, _ = await user_with_cookies(session, username="regularauthor")
         admin, admin_cookies = await user_with_cookies(
             session, role=MemberRoleEnum.ADMIN, username="admineditor"
@@ -366,10 +365,9 @@ class TestUpdateThread:
 
 # ── DELETE /forum/threads/{id} ────────────────────────────────────────────────
 
+
 class TestDeleteThread:
-    async def test_author_can_soft_delete(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_author_can_soft_delete(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id)
@@ -403,9 +401,7 @@ class TestDeleteThread:
         r = await client.delete(f"/forum/threads/{thread.thread_id}", cookies=cookies)
         assert r.status_code == 403
 
-    async def test_admin_can_delete_any_thread(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_admin_can_delete_any_thread(self, client: AsyncClient, session: AsyncSession):
         author, _ = await user_with_cookies(session, username="nodelete_author")
         admin, cookies = await user_with_cookies(
             session, role=MemberRoleEnum.ADMIN, username="admin_deleter"
@@ -419,10 +415,9 @@ class TestDeleteThread:
 
 # ── POST /forum/threads/{id}/vote ─────────────────────────────────────────────
 
+
 class TestVoteThread:
-    async def test_upvote_returns_vote_state(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_upvote_returns_vote_state(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id)
@@ -435,9 +430,7 @@ class TestVoteThread:
         assert r.status_code == 200
         assert r.json()["user_vote"] is True
 
-    async def test_same_vote_twice_removes_vote(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_same_vote_twice_removes_vote(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id)
@@ -448,9 +441,7 @@ class TestVoteThread:
 
         assert r.json()["user_vote"] is None
 
-    async def test_flip_vote_from_up_to_down(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_flip_vote_from_up_to_down(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id)
@@ -466,8 +457,9 @@ class TestVoteThread:
     ):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
-        thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id,
-                                   is_deleted=True)
+        thread = await make_thread(
+            session, topic_id=topic.topic_id, author_id=user.user_id, is_deleted=True
+        )
 
         r = await client.post(
             f"/forum/threads/{thread.thread_id}/vote",
@@ -478,6 +470,7 @@ class TestVoteThread:
 
 
 # ── POST /forum/threads/{id}/replies ─────────────────────────────────────────
+
 
 class TestCreateReply:
     async def test_creates_reply(self, client: AsyncClient, session: AsyncSession):
@@ -494,13 +487,12 @@ class TestCreateReply:
         assert r.json()["body"] == "Great thread!"
         assert r.json()["author_username"] == user.username
 
-    async def test_locked_thread_returns_403(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_locked_thread_returns_403(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
-        thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id,
-                                   is_locked=True)
+        thread = await make_thread(
+            session, topic_id=topic.topic_id, author_id=user.user_id, is_locked=True
+        )
 
         r = await client.post(
             f"/forum/threads/{thread.thread_id}/replies",
@@ -509,9 +501,7 @@ class TestCreateReply:
         )
         assert r.status_code == 403
 
-    async def test_nested_reply_references_parent(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_nested_reply_references_parent(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id)
@@ -525,9 +515,7 @@ class TestCreateReply:
         assert r.status_code == 201
         assert r.json()["parent_reply_id"] == str(parent.reply_id)
 
-    async def test_invalid_parent_returns_400(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_invalid_parent_returns_400(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id)
@@ -541,6 +529,7 @@ class TestCreateReply:
 
 
 # ── PATCH /forum/replies/{id} ─────────────────────────────────────────────────
+
 
 class TestUpdateReply:
     async def test_author_can_edit(self, client: AsyncClient, session: AsyncSession):
@@ -574,10 +563,9 @@ class TestUpdateReply:
 
 # ── DELETE /forum/replies/{id} ────────────────────────────────────────────────
 
+
 class TestDeleteReply:
-    async def test_author_can_soft_delete(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_author_can_soft_delete(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id)
@@ -589,9 +577,7 @@ class TestDeleteReply:
         await session.refresh(reply)
         assert reply.is_deleted is True
 
-    async def test_admin_can_delete_any_reply(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_admin_can_delete_any_reply(self, client: AsyncClient, session: AsyncSession):
         author, _ = await user_with_cookies(session, username="replyauth2")
         admin, cookies = await user_with_cookies(
             session, role=MemberRoleEnum.ADMIN, username="replyadmin"
@@ -618,6 +604,7 @@ class TestDeleteReply:
 
 # ── POST /forum/replies/{id}/vote ─────────────────────────────────────────────
 
+
 class TestVoteReply:
     async def test_upvote_reply(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
@@ -633,9 +620,7 @@ class TestVoteReply:
         assert r.status_code == 200
         assert r.json()["user_vote"] is True
 
-    async def test_same_vote_twice_removes_vote(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_same_vote_twice_removes_vote(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         thread = await make_thread(session, topic_id=topic.topic_id, author_id=user.user_id)
@@ -649,6 +634,7 @@ class TestVoteReply:
 
 
 # ── Trigger-dependent tests ───────────────────────────────────────────────────
+
 
 @pytest.mark.triggers
 class TestTriggerMaintainedCounters:
@@ -668,10 +654,16 @@ class TestTriggerMaintainedCounters:
         user, cookies = await user_with_cookies(trigger_session)
         topic = await make_topic(trigger_session)
 
-        await trigger_client.post(f"/forum/topics/{topic.topic_id}/threads",
-                                  json={"title": "T1", "body": "body"}, cookies=cookies)
-        await trigger_client.post(f"/forum/topics/{topic.topic_id}/threads",
-                                  json={"title": "T2", "body": "body"}, cookies=cookies)
+        await trigger_client.post(
+            f"/forum/topics/{topic.topic_id}/threads",
+            json={"title": "T1", "body": "body"},
+            cookies=cookies,
+        )
+        await trigger_client.post(
+            f"/forum/topics/{topic.topic_id}/threads",
+            json={"title": "T2", "body": "body"},
+            cookies=cookies,
+        )
 
         trigger_session.expire(topic)
         await trigger_session.refresh(topic)
@@ -682,13 +674,13 @@ class TestTriggerMaintainedCounters:
     ):
         user, cookies = await user_with_cookies(trigger_session)
         topic = await make_topic(trigger_session)
-        thread = await make_thread(trigger_session,
-                                   topic_id=topic.topic_id,
-                                   author_id=user.user_id)
+        thread = await make_thread(trigger_session, topic_id=topic.topic_id, author_id=user.user_id)
 
-        await trigger_client.post(f"/forum/threads/{thread.thread_id}/replies",
-                                  json={"body": "reply 1", "parent_reply_id": None},
-                                  cookies=cookies)
+        await trigger_client.post(
+            f"/forum/threads/{thread.thread_id}/replies",
+            json={"body": "reply 1", "parent_reply_id": None},
+            cookies=cookies,
+        )
 
         trigger_session.expire(thread)
         await trigger_session.refresh(thread)
@@ -699,12 +691,11 @@ class TestTriggerMaintainedCounters:
     ):
         user, cookies = await user_with_cookies(trigger_session)
         topic = await make_topic(trigger_session)
-        thread = await make_thread(trigger_session,
-                                   topic_id=topic.topic_id,
-                                   author_id=user.user_id)
+        thread = await make_thread(trigger_session, topic_id=topic.topic_id, author_id=user.user_id)
 
-        await trigger_client.post(f"/forum/threads/{thread.thread_id}/vote",
-                                  json={"is_upvote": True}, cookies=cookies)
+        await trigger_client.post(
+            f"/forum/threads/{thread.thread_id}/vote", json={"is_upvote": True}, cookies=cookies
+        )
 
         trigger_session.expire(thread)
         await trigger_session.refresh(thread)

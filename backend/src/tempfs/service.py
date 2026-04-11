@@ -3,62 +3,63 @@ TempFS service — handles all business logic for /tempfs.
 Files are stored on disk at {TEMPFS_DIR}/{file_id} (no extension, UUID name only).
 Compression uses zstd; we only keep the compressed version if it is smaller.
 """
+
 import logging
 import re
 import unicodedata
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 from uuid import UUID, uuid4
 
 import aiofiles
 import zstandard as zstd
 from fastapi import UploadFile
-from sqlmodel import select, func
+from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from src.auth.utils import generate_passwd_hash, verify_passwd
 from src.config import Config
 from src.db.enums import DownloadPermission
-from src.db.models import TempFile, ExpiredFile
+from src.db.models import ExpiredFile, TempFile
 from src.db.schemas import (
-    TEMPFS_MIN_LIFETIME,
     TEMPFS_MAX_LIFETIME,
-    TEMPFS_DEFAULT_LIFETIME,
-    TempFileRead,
-    TempFileUploadResponse,
+    TEMPFS_MIN_LIFETIME,
+    FileReadModel,
     StorageStatusRead,
     TempFileCreate,
     TempFilePublicInfo,
-    FileReadModel,
-)
-from src.tempfs.logger import (
-    log_upload_ok,
-    log_upload_fail,
-    log_download_ok,
-    log_download_fail,
-    log_delete_ok,
-    log_manual_delete_fail,
-    log_expire,
-    log_cleanup_delete_fail,
-    log_cleanup_delete_ok,
+    TempFileRead,
+    TempFileUploadResponse,
 )
 from src.exceptions import (
     BadRequestError,
     FileTooLargeError,
-    QuotaExceededError,
+    ForbiddenError,
     InvalidPasswordError,
     NotFoundError,
-    ForbiddenError,
+    QuotaExceededError,
+)
+from src.exceptions import (
     FileNotFoundError as AppFileNotFoundError,
+)
+from src.tempfs.logger import (
+    log_cleanup_delete_fail,
+    log_cleanup_delete_ok,
+    log_delete_ok,
+    log_download_fail,
+    log_download_ok,
+    log_expire,
+    log_manual_delete_fail,
+    log_upload_fail,
+    log_upload_ok,
 )
 
 TEMPFS_DIR = Path(Config.TEMPFS_DIR)
-TOTAL_SHARED_BYTES = 200 * 1024 ** 3          # 200 GB global quota
-USER_QUOTA_BYTES = 5 * 1024 ** 3          # 5 GB per-user quota
-MAX_FILE_SIZE = 2 * 1024 ** 3        # 2 GB per file
-CHUNK = 1024 * 1024                  # 1 MB read chunks
+TOTAL_SHARED_BYTES = 200 * 1024**3  # 200 GB global quota
+USER_QUOTA_BYTES = 5 * 1024**3  # 5 GB per-user quota
+MAX_FILE_SIZE = 2 * 1024**3  # 2 GB per file
+CHUNK = 1024 * 1024  # 1 MB read chunks
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +116,7 @@ def _zstd_compress_file(src: Path, dst: Path, level: int = 3) -> None:
 
 
 class TempFSService:
-
-    # helpers 
+    # helpers
     async def _used_bytes(self, session: AsyncSession) -> int:
         """Total stored_size across all active temp files."""
         result = await session.exec(select(func.sum(TempFile.stored_size)))
@@ -124,8 +124,7 @@ class TempFSService:
 
     async def _user_used_bytes(self, uploader_id: UUID, session: AsyncSession) -> int:
         result = await session.exec(
-            select(func.sum(TempFile.stored_size))
-            .where(TempFile.uploader_id == uploader_id)
+            select(func.sum(TempFile.stored_size)).where(TempFile.uploader_id == uploader_id)
         )
         return result.one() or 0
 
@@ -133,7 +132,7 @@ class TempFSService:
         return role in (MemberRoleEnum.VIP.value, MemberRoleEnum.ADMIN.value)
 
     def _bytes_to_MB(self, file_size: int) -> str:
-        return f'{file_size / 1024 / 1024} MB'
+        return f"{file_size / 1024 / 1024} MB"
 
     # upload file from this user
     async def upload(
@@ -154,7 +153,7 @@ class TempFSService:
 
         # Clamp lifetime
         lifetime = max(TEMPFS_MIN_LIFETIME, min(metadata.lifetime_seconds, TEMPFS_MAX_LIFETIME))
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=lifetime)
+        expires_at = datetime.now(UTC) + timedelta(seconds=lifetime)
 
         # ── Stream upload to a temporary raw file with running size cap ──
         # We never hold the full payload in memory. The raw file is written
@@ -170,10 +169,14 @@ class TempFSService:
                 while chunk := await file.read(CHUNK):
                     file_size += len(chunk)
                     if file_size > MAX_FILE_SIZE:
-                        log_upload_fail(username, "file_too_large", {
-                            "file_size": file_size,
-                            "max_size": MAX_FILE_SIZE,
-                        })
+                        log_upload_fail(
+                            username,
+                            "file_too_large",
+                            {
+                                "file_size": file_size,
+                                "max_size": MAX_FILE_SIZE,
+                            },
+                        )
                         raise FileTooLargeError(
                             f"File exceeds 2 GB limit ({self._bytes_to_MB(file_size)})"
                         )
@@ -185,11 +188,15 @@ class TempFSService:
             # ── Quota checks (against raw size; compression may shrink it) ──
             system_bytes_used = await self._used_bytes(session)
             if system_bytes_used + file_size > TOTAL_SHARED_BYTES:
-                log_upload_fail(username, "quota_exceeded", {
-                    "used_bytes": system_bytes_used,
-                    "file_size": file_size,
-                    "total_bytes_offered": TOTAL_SHARED_BYTES,
-                })
+                log_upload_fail(
+                    username,
+                    "quota_exceeded",
+                    {
+                        "used_bytes": system_bytes_used,
+                        "file_size": file_size,
+                        "total_bytes_offered": TOTAL_SHARED_BYTES,
+                    },
+                )
                 raise QuotaExceededError(
                     f"Upload would exceed global storage quota. "
                     f"Used: {self._bytes_to_MB(system_bytes_used)}, "
@@ -199,11 +206,15 @@ class TempFSService:
 
             user_bytes_used = file_size + await self._user_used_bytes(uploader_id, session)
             if user_bytes_used > USER_QUOTA_BYTES:
-                log_upload_fail(username, "quota_exceeded", {
-                    "used_bytes": user_bytes_used,
-                    "file_size": file_size,
-                    "quota": USER_QUOTA_BYTES,
-                })
+                log_upload_fail(
+                    username,
+                    "quota_exceeded",
+                    {
+                        "used_bytes": user_bytes_used,
+                        "file_size": file_size,
+                        "quota": USER_QUOTA_BYTES,
+                    },
+                )
                 raise QuotaExceededError(
                     f"Upload would exceed assigned user storage quota. "
                     f"Used: {self._bytes_to_MB(user_bytes_used)}, "
@@ -218,9 +229,7 @@ class TempFSService:
             if metadata.compress:
                 compressed_path = TEMPFS_DIR / f"{file_id}.zst"
                 try:
-                    await run_in_threadpool(
-                        _zstd_compress_file, raw_path, compressed_path
-                    )
+                    await run_in_threadpool(_zstd_compress_file, raw_path, compressed_path)
                     compressed_size = compressed_path.stat().st_size
                     if compressed_size < file_size:
                         # Compressed version wins — promote it, discard raw
@@ -248,7 +257,7 @@ class TempFSService:
             safe_filename = _sanitize_filename(file.filename)
 
             # Hash password if applicable
-            password_hash: Optional[str] = None
+            password_hash: str | None = None
             if perm == DownloadPermission.PASSWORD and metadata.password:
                 password_hash = generate_passwd_hash(metadata.password)
 
@@ -271,8 +280,13 @@ class TempFSService:
 
             new_used_bytes = await self._user_used_bytes(uploader_id, session)
             log_upload_ok(
-                username, str(file_id), safe_filename,
-                file_size, stored_size, is_compressed, expires_at,
+                username,
+                str(file_id),
+                safe_filename,
+                file_size,
+                stored_size,
+                is_compressed,
+                expires_at,
             )
 
             return TempFileUploadResponse(
@@ -297,10 +311,8 @@ class TempFSService:
             raise
 
     # list unexpired files for this user
-    async def list_user_files(
-        self, uploader_id: UUID, session: AsyncSession
-    ) -> list[TempFileRead]:
-        now = datetime.now(timezone.utc)
+    async def list_user_files(self, uploader_id: UUID, session: AsyncSession) -> list[TempFileRead]:
+        now = datetime.now(UTC)
         result = await session.exec(
             select(TempFile)
             .where(TempFile.uploader_id == uploader_id)
@@ -332,13 +344,13 @@ class TempFSService:
             storage_cap_bytes=TOTAL_SHARED_BYTES,
         )
 
-    # download 
+    # download
     async def get_file_for_download(
         self,
         file_id: UUID,
-        requester_id: Optional[UUID],
-        requester_username: Optional[str],
-        password: Optional[str],
+        requester_id: UUID | None,
+        requester_username: str | None,
+        password: str | None,
         want_compressed: bool,
         session: AsyncSession,
     ) -> FileReadModel:
@@ -347,7 +359,7 @@ class TempFSService:
         Raises AppFileNotFoundError on any access failure — the caller returns 404
         uniformly (not 403) to avoid leaking file existence.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         record: TempFile = await session.get(TempFile, file_id)
 
         if not record or record.expires_at <= now:
@@ -367,11 +379,10 @@ class TempFSService:
         elif perm_required == DownloadPermission.PASSWORD:
             # Uploader always bypasses password
             is_owner = requester_id is not None and requester_id == record.uploader_id
-            if not is_owner:
-                if not password or not verify_passwd(password, record.password_hash):
-                    reason = "invalid_password"
-                    log_download_fail(requester_username, str(file_id), reason)
-                    raise AppFileNotFoundError(reason)
+            if not is_owner and (not password or not verify_passwd(password, record.password_hash)):
+                reason = "invalid_password"
+                log_download_fail(requester_username, str(file_id), reason)
+                raise AppFileNotFoundError(reason)
 
         # perm == PUBLIC: no further checks needed
 
@@ -382,7 +393,12 @@ class TempFSService:
             raise AppFileNotFoundError(reason)
 
         log_download_ok(requester_username, str(file_id), record.original_filename)
-        return FileReadModel(disk_path=disk_path, original_filename=record.original_filename, mime_type=record.mime_type, is_compressed=record.is_compressed)
+        return FileReadModel(
+            disk_path=disk_path,
+            original_filename=record.original_filename,
+            mime_type=record.mime_type,
+            is_compressed=record.is_compressed,
+        )
 
     # delete (user-initiated)
     async def delete_file(
@@ -412,10 +428,8 @@ class TempFSService:
         Moves metadata to expired_file, deletes disk file.
         Returns count of files deleted.
         """
-        now = datetime.now(timezone.utc)
-        result = await session.exec(
-            select(TempFile).where(TempFile.expires_at <= now)
-        )
+        now = datetime.now(UTC)
+        result = await session.exec(select(TempFile).where(TempFile.expires_at <= now))
         due = result.all()
 
         for record in due:
@@ -449,7 +463,6 @@ class TempFSService:
                 e,
             )
             log_cleanup_delete_fail(record.file_id, e)
-            
 
         expired = ExpiredFile(
             file_id=record.file_id,
@@ -468,15 +481,14 @@ class TempFSService:
         await session.delete(record)
         await session.commit()
 
-
     async def get_public_info(
         self, file_id: UUID, session: AsyncSession
-    ) -> Optional[TempFilePublicInfo]:
+    ) -> TempFilePublicInfo | None:
         """
         Returns public metadata for the download page.
         Returns None if the file doesn't exist or has expired.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         record = await session.get(TempFile, file_id)
         if not record or record.expires_at <= now:
             return None

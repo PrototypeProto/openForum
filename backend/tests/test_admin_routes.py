@@ -12,18 +12,16 @@ Covers:
   POST /admin/users/{u}/reject  — pending → rejected
 """
 
-import pytest
 from datetime import date
+
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.db.enums import MemberRoleEnum
-from src.db.models import UserID, PendingUser
-from src.db.redis_client import add_registered_user, get_user
 from src.auth.utils import generate_passwd_hash
-
-from tests.conftest import make_user, make_access_token, auth_cookies
-
+from src.db.enums import MemberRoleEnum
+from src.db.models import PendingUser, UserID
+from src.db.redis_client import add_registered_user, get_user
+from tests.conftest import auth_cookies, make_access_token, make_user
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -32,7 +30,7 @@ async def make_pending_user(
     session: AsyncSession,
     *,
     username: str = None,
-    password: str = "pass",
+    password: str = "pass",  # noqa: S107
 ) -> PendingUser:
     """Insert a PendingUser row directly, bypassing the signup endpoint."""
     from uuid import uuid4
@@ -70,9 +68,7 @@ async def admin_client_cookies(session: AsyncSession):
 
 
 class TestGetVerifiedUsers:
-    async def test_admin_gets_user_list(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_admin_gets_user_list(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         await make_user(session, username="alice")
         await make_user(session, username="bob")
@@ -83,9 +79,7 @@ class TestGetVerifiedUsers:
         assert "alice" in usernames
         assert "bob" in usernames
 
-    async def test_non_admin_is_blocked(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_non_admin_is_blocked(self, client: AsyncClient, session: AsyncSession):
         user = await make_user(session, role=MemberRoleEnum.USER)
         await add_registered_user(user.username, MemberRoleEnum.USER)
         token = make_access_token(user)
@@ -102,11 +96,9 @@ class TestGetVerifiedUsers:
 
 
 class TestGetPendingUsers:
-    async def test_returns_pending_users(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_returns_pending_users(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
-        p = await make_pending_user(session, username="pendingpete")
+        await make_pending_user(session, username="pendingpete")
 
         r = await client.get("/admin/users/pending", cookies=cookies)
         assert r.status_code == 200
@@ -126,9 +118,7 @@ class TestGetPendingUsers:
 
 
 class TestGetUserStats:
-    async def test_stats_reflect_created_users(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_stats_reflect_created_users(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         await make_user(session, role=MemberRoleEnum.USER)
         await make_user(session, role=MemberRoleEnum.VIP)
@@ -143,9 +133,7 @@ class TestGetUserStats:
         assert body["vip"] >= 1
         assert body["pending"] >= 1
 
-    async def test_stats_has_expected_keys(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_stats_has_expected_keys(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         r = await client.get("/admin/users/stats", cookies=cookies)
         body = r.json()
@@ -156,13 +144,9 @@ class TestGetUserStats:
 
 
 class TestUpdateUserRole:
-    async def test_promotes_user_to_vip(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_promotes_user_to_vip(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
-        target = await make_user(
-            session, username="promoteme", role=MemberRoleEnum.USER
-        )
+        target = await make_user(session, username="promoteme", role=MemberRoleEnum.USER)
 
         r = await client.patch(
             f"/admin/users/{target.username}/role",
@@ -174,9 +158,7 @@ class TestUpdateUserRole:
         await session.refresh(target)
         assert target.role == MemberRoleEnum.VIP
 
-    async def test_demotes_vip_to_user(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_demotes_vip_to_user(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         target = await make_user(session, username="demoteme", role=MemberRoleEnum.VIP)
 
@@ -198,9 +180,7 @@ class TestUpdateUserRole:
         RoleChecker enforces it on the very next request.
         """
         _, cookies = await admin_client_cookies(session)
-        target = await make_user(
-            session, username="redispromote", role=MemberRoleEnum.USER
-        )
+        target = await make_user(session, username="redispromote", role=MemberRoleEnum.USER)
         await add_registered_user(target.username, MemberRoleEnum.USER)
 
         await client.patch(
@@ -212,9 +192,7 @@ class TestUpdateUserRole:
         live_role = await get_user(target.username)
         assert live_role == MemberRoleEnum.ADMIN
 
-    async def test_unknown_user_returns_404(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_unknown_user_returns_404(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         r = await client.patch(
             "/admin/users/doesnotexist/role",
@@ -223,9 +201,7 @@ class TestUpdateUserRole:
         )
         assert r.status_code == 404
 
-    async def test_invalid_role_value_returns_422(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_invalid_role_value_returns_422(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         target = await make_user(session, username="badrole")
         r = await client.patch(
@@ -240,22 +216,16 @@ class TestUpdateUserRole:
 
 
 class TestApprovePendingUser:
-    async def test_approve_moves_to_verified(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_approve_moves_to_verified(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         pending = await make_pending_user(session, username="approveme")
 
-        r = await client.post(
-            f"/admin/users/{pending.username}/approve", cookies=cookies
-        )
+        r = await client.post(f"/admin/users/{pending.username}/approve", cookies=cookies)
         assert r.status_code == 200
         body = r.json()
         assert body["username"] == "approveme"
 
-    async def test_approve_removes_from_pending(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_approve_removes_from_pending(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         pending = await make_pending_user(session, username="removepending")
 
@@ -272,9 +242,7 @@ class TestApprovePendingUser:
         _, cookies = await admin_client_cookies(session)
         verified = await make_user(session, username="alreadyverified")
 
-        r = await client.post(
-            f"/admin/users/{verified.username}/approve", cookies=cookies
-        )
+        r = await client.post(f"/admin/users/{verified.username}/approve", cookies=cookies)
         assert r.status_code == 409
 
     async def test_approve_unknown_user_returns_404(
@@ -289,23 +257,17 @@ class TestApprovePendingUser:
 
 
 class TestRejectPendingUser:
-    async def test_reject_creates_rejected_record(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_reject_creates_rejected_record(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         pending = await make_pending_user(session, username="rejectme")
 
-        r = await client.post(
-            f"/admin/users/{pending.username}/reject", cookies=cookies
-        )
+        r = await client.post(f"/admin/users/{pending.username}/reject", cookies=cookies)
         assert r.status_code == 200
         body = r.json()
         assert body["username"] == "rejectme"
         assert "rejected_date" in body
 
-    async def test_reject_removes_from_pending(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_reject_removes_from_pending(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await admin_client_cookies(session)
         pending = await make_pending_user(session, username="rejectclean")
 
@@ -321,9 +283,7 @@ class TestRejectPendingUser:
         _, cookies = await admin_client_cookies(session)
         verified = await make_user(session, username="cannotreject")
 
-        r = await client.post(
-            f"/admin/users/{verified.username}/reject", cookies=cookies
-        )
+        r = await client.post(f"/admin/users/{verified.username}/reject", cookies=cookies)
         assert r.status_code == 409
 
     async def test_reject_unknown_user_returns_404(

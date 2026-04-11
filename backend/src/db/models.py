@@ -1,14 +1,13 @@
-from sqlmodel import SQLModel, Field, Column
-from datetime import date, datetime, time, timedelta
-from uuid import UUID, uuid4
-from sqlalchemy import Enum as SAEnum, UniqueConstraint, func
-from sqlalchemy import Interval, Time as Time
+from datetime import date, datetime
+from uuid import UUID
+
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import Time as Time
+from sqlalchemy import func
 from sqlalchemy.dialects import postgresql as postgres
-from src.db.enums import *
-from typing import Optional
-from pydantic import BaseModel
-from datetime import datetime, date
-from enum import Enum
+from sqlmodel import Column, Field, SQLModel
+
+from src.db.enums import DownloadPermission, MemberRoleEnum
 
 """##################################
     NOTE: START REGISTRATION DATA 
@@ -25,7 +24,7 @@ class UserID(SQLModel, table=True):
 
     __tablename__ = "user_id"
 
-    id: Optional[UUID] = Field(
+    id: UUID | None = Field(
         sa_column=Column(
             postgres.UUID,
             primary_key=True,
@@ -59,7 +58,7 @@ class PendingUser(SQLModel, table=True):
         min_length=2,
         max_length=32,
     )
-    email: Optional[str] = Field(
+    email: str | None = Field(
         sa_column=Column(
             postgres.VARCHAR,
             unique=True,
@@ -68,12 +67,10 @@ class PendingUser(SQLModel, table=True):
         ),
         max_length=64,
     )
-    password_hash: str = Field(
-        sa_column=Column(postgres.VARCHAR, nullable=False), exclude=True
-    )
+    password_hash: str = Field(sa_column=Column(postgres.VARCHAR, nullable=False), exclude=True)
 
-    nickname: Optional[str] = Field(min_length=2, index=False, nullable=True)
-    join_date: Optional[date] = Field(
+    nickname: str | None = Field(min_length=2, index=False, nullable=True)
+    join_date: date | None = Field(
         sa_column=Column(
             postgres.DATE,
             server_default=func.current_date(),
@@ -82,7 +79,7 @@ class PendingUser(SQLModel, table=True):
         ),
         default=None,
     )
-    request: Optional[str] = Field(nullable=True)
+    request: str | None = Field(nullable=True)
 
     def __str__(self):
         return f"<User: `{self.username}` identified by id: `{self.user_id}` and name `{self.nickname}`>"
@@ -107,7 +104,7 @@ class User(SQLModel, table=True):
         min_length=2,
         max_length=32,
     )
-    email: Optional[str] = Field(
+    email: str | None = Field(
         sa_column=Column(
             postgres.VARCHAR,
             unique=True,
@@ -116,16 +113,12 @@ class User(SQLModel, table=True):
         ),
         max_length=64,
     )
-    password_hash: str = Field(
-        sa_column=Column(postgres.VARCHAR, nullable=False), exclude=True
-    )
+    password_hash: str = Field(sa_column=Column(postgres.VARCHAR, nullable=False), exclude=True)
 
-    nickname: Optional[str] = Field(index=False, nullable=True)
-    join_date: date = Field(
-        sa_column=Column(postgres.DATE, index=False, nullable=False)
-    )
-    request: Optional[str] = Field(nullable=True)
-    verified_date: Optional[date] = Field(
+    nickname: str | None = Field(index=False, nullable=True)
+    join_date: date = Field(sa_column=Column(postgres.DATE, index=False, nullable=False))
+    request: str | None = Field(nullable=True)
+    verified_date: date | None = Field(
         sa_column=Column(
             postgres.DATE,
             server_default=func.current_date(),
@@ -134,7 +127,7 @@ class User(SQLModel, table=True):
         ),
         default=None,
     )
-    last_login_date: Optional[date] = Field(
+    last_login_date: date | None = Field(
         sa_column=Column(
             postgres.DATE,
             server_default=func.current_date(),
@@ -182,7 +175,7 @@ class RejectedUser(SQLModel, table=True):
         min_length=2,
         max_length=32,
     )
-    email: Optional[str] = Field(
+    email: str | None = Field(
         sa_column=Column(
             postgres.VARCHAR,
             unique=True,
@@ -191,12 +184,10 @@ class RejectedUser(SQLModel, table=True):
         ),
         max_length=64,
     )
-    password_hash: str = Field(
-        sa_column=Column(postgres.VARCHAR, nullable=False), exclude=True
-    )
+    password_hash: str = Field(sa_column=Column(postgres.VARCHAR, nullable=False), exclude=True)
 
-    nickname: Optional[str] = Field(min_length=2, index=False, nullable=True)
-    join_date: Optional[date] = Field(
+    nickname: str | None = Field(min_length=2, index=False, nullable=True)
+    join_date: date | None = Field(
         sa_column=Column(
             postgres.DATE,
             server_default=func.current_date(),
@@ -205,8 +196,8 @@ class RejectedUser(SQLModel, table=True):
         ),
         default=None,
     )
-    request: Optional[str] = Field(nullable=True)
-    rejected_date: Optional[date] = Field(
+    request: str | None = Field(nullable=True)
+    rejected_date: date | None = Field(
         sa_column=Column(
             postgres.DATE,
             server_default=func.current_date(),
@@ -239,7 +230,7 @@ class Topic(SQLModel, table=True):
 
     __tablename__ = "topic"
 
-    topic_id: Optional[UUID] = Field(
+    topic_id: UUID | None = Field(
         sa_column=Column(
             postgres.UUID,
             primary_key=True,
@@ -248,13 +239,13 @@ class Topic(SQLModel, table=True):
         ),
         default=None,
     )
-    group_id: Optional[UUID] = Field(foreign_key="topic_group.group_id", nullable=True)
+    group_id: UUID | None = Field(foreign_key="topic_group.group_id", nullable=True)
     name: str = Field(
         sa_column=Column(postgres.VARCHAR, unique=True, nullable=False),
         max_length=100,
     )
-    description: Optional[str] = Field(sa_column=Column(postgres.TEXT, nullable=True))
-    icon_url: Optional[str] = Field(sa_column=Column(postgres.VARCHAR, nullable=True))
+    description: str | None = Field(sa_column=Column(postgres.TEXT, nullable=True))
+    icon_url: str | None = Field(sa_column=Column(postgres.VARCHAR, nullable=True))
     # lower number = higher up in the list
     display_order: int = Field(
         sa_column=Column(postgres.INTEGER, nullable=False, server_default="0"),
@@ -268,7 +259,7 @@ class Topic(SQLModel, table=True):
         sa_column=Column(postgres.INTEGER, nullable=False, server_default="0"),
         default=0,
     )
-    created_at: Optional[datetime] = Field(
+    created_at: datetime | None = Field(
         sa_column=Column(
             postgres.TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
         ),
@@ -278,10 +269,10 @@ class Topic(SQLModel, table=True):
         sa_column=Column(postgres.BOOLEAN, nullable=False, server_default="false"),
         default=False,
     )  # if True, no new threads can be created
-    last_activity_at: Optional[datetime] = Field(
+    last_activity_at: datetime | None = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True)
     )
-    last_thread_id: Optional[UUID] = Field(nullable=True, default=None)
+    last_thread_id: UUID | None = Field(nullable=True, default=None)
 
 
 class TopicGroup(SQLModel, table=True):
@@ -291,7 +282,7 @@ class TopicGroup(SQLModel, table=True):
 
     __tablename__ = "topic_group"
 
-    group_id: Optional[UUID] = Field(
+    group_id: UUID | None = Field(
         sa_column=Column(
             postgres.UUID,
             primary_key=True,
@@ -323,7 +314,7 @@ class Thread(SQLModel, table=True):
 
     __tablename__ = "thread"
 
-    thread_id: Optional[UUID] = Field(
+    thread_id: UUID | None = Field(
         sa_column=Column(
             postgres.UUID,
             primary_key=True,
@@ -339,20 +330,20 @@ class Thread(SQLModel, table=True):
         max_length=200,
     )
     body: str = Field(sa_column=Column(postgres.TEXT, nullable=False))
-    created_at: Optional[datetime] = Field(
+    created_at: datetime | None = Field(
         sa_column=Column(
             postgres.TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
         ),
         default=None,
     )
-    updated_at: Optional[datetime] = Field(
+    updated_at: datetime | None = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True)
     )
     is_pinned: bool = Field(
         sa_column=Column(postgres.BOOLEAN, nullable=False, server_default="false"),
         default=False,
     )
-    pin_expires_at: Optional[datetime] = Field(
+    pin_expires_at: datetime | None = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True)
     )  # None = pinned forever
     is_locked: bool = Field(
@@ -379,10 +370,10 @@ class Thread(SQLModel, table=True):
         sa_column=Column(postgres.INTEGER, nullable=False, server_default="0"),
         default=0,
     )
-    last_activity_at: Optional[datetime] = Field(
+    last_activity_at: datetime | None = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True, index=True)
     )
-    last_activity: Optional[UUID] = Field(nullable=True, default=None)  # a replyid
+    last_activity: UUID | None = Field(nullable=True, default=None)  # a replyid
 
 
 class ThreadVote(SQLModel, table=True):
@@ -398,9 +389,7 @@ class ThreadVote(SQLModel, table=True):
     __tablename__ = "thread_vote"
 
     user_id: UUID = Field(foreign_key="user_id.id", primary_key=True, nullable=False)
-    thread_id: UUID = Field(
-        foreign_key="thread.thread_id", primary_key=True, nullable=False
-    )
+    thread_id: UUID = Field(foreign_key="thread.thread_id", primary_key=True, nullable=False)
     is_upvote: bool = Field(sa_column=Column(postgres.BOOLEAN, nullable=False))
 
 
@@ -440,7 +429,7 @@ class Reply(SQLModel, table=True):
 
     __tablename__ = "reply"
 
-    reply_id: Optional[UUID] = Field(
+    reply_id: UUID | None = Field(
         sa_column=Column(
             postgres.UUID,
             primary_key=True,
@@ -451,17 +440,17 @@ class Reply(SQLModel, table=True):
     )
     thread_id: UUID = Field(foreign_key="thread.thread_id", nullable=False)
     author_id: UUID = Field(foreign_key="user_id.id", nullable=False, exclude=True)
-    parent_reply_id: Optional[UUID] = Field(
+    parent_reply_id: UUID | None = Field(
         foreign_key="reply.reply_id", nullable=True, default=None
     )  # self-referential — None means top-level reply
     body: str = Field(sa_column=Column(postgres.TEXT, nullable=False))
-    created_at: Optional[datetime] = Field(
+    created_at: datetime | None = Field(
         sa_column=Column(
             postgres.TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
         ),
         default=None,
     )
-    updated_at: Optional[datetime] = Field(
+    updated_at: datetime | None = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True)
     )
     is_deleted: bool = Field(
@@ -490,9 +479,7 @@ class ReplyVote(SQLModel, table=True):
     __tablename__ = "reply_vote"
 
     user_id: UUID = Field(foreign_key="user_id.id", primary_key=True, nullable=False)
-    reply_id: UUID = Field(
-        foreign_key="reply.reply_id", primary_key=True, nullable=False
-    )
+    reply_id: UUID = Field(foreign_key="reply.reply_id", primary_key=True, nullable=False)
     is_upvote: bool = Field(sa_column=Column(postgres.BOOLEAN, nullable=False))
 
 
@@ -552,7 +539,7 @@ class TempFile(SQLModel, table=True):
 
     __tablename__ = "temp_file"
 
-    file_id: Optional[UUID] = Field(
+    file_id: UUID | None = Field(
         sa_column=Column(
             postgres.UUID,
             primary_key=True,
@@ -574,9 +561,7 @@ class TempFile(SQLModel, table=True):
     original_size: int = Field(
         sa_column=Column(postgres.BIGINT, nullable=False)
     )  # bytes before compression
-    stored_size: int = Field(
-        sa_column=Column(postgres.BIGINT, nullable=False)
-    )  # bytes on disk
+    stored_size: int = Field(sa_column=Column(postgres.BIGINT, nullable=False))  # bytes on disk
     is_compressed: bool = Field(
         sa_column=Column(postgres.BOOLEAN, nullable=False, server_default="false"),
         default=False,
@@ -593,13 +578,13 @@ class TempFile(SQLModel, table=True):
             nullable=False,
         )
     )
-    password_hash: Optional[str] = Field(
+    password_hash: str | None = Field(
         sa_column=Column(postgres.VARCHAR, nullable=True),
         default=None,
         exclude=True,
     )  # only set when download_permission == PASSWORD
 
-    created_at: Optional[datetime] = Field(
+    created_at: datetime | None = Field(
         sa_column=Column(
             postgres.TIMESTAMP(timezone=True),
             nullable=False,
@@ -621,9 +606,7 @@ class ExpiredFile(SQLModel, table=True):
 
     __tablename__ = "expired_file"
 
-    file_id: UUID = Field(
-        sa_column=Column(postgres.UUID, primary_key=True, nullable=False)
-    )
+    file_id: UUID = Field(sa_column=Column(postgres.UUID, primary_key=True, nullable=False))
     uploader_id: UUID = Field(foreign_key="user_id.id", nullable=False)
 
     original_filename: str = Field(
@@ -651,19 +634,19 @@ class ExpiredFile(SQLModel, table=True):
             nullable=False,
         )
     )
-    password_hash: Optional[str] = Field(
+    password_hash: str | None = Field(
         sa_column=Column(postgres.VARCHAR, nullable=True),
         default=None,
         exclude=True,
     )
-    created_at: Optional[datetime] = Field(
+    created_at: datetime | None = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=True),
         default=None,
     )
     expires_at: datetime = Field(
         sa_column=Column(postgres.TIMESTAMP(timezone=True), nullable=False)
     )
-    deleted_at: Optional[datetime] = Field(
+    deleted_at: datetime | None = Field(
         sa_column=Column(
             postgres.TIMESTAMP(timezone=True),
             nullable=False,

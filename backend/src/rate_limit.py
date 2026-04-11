@@ -32,7 +32,6 @@ TTL:         window_seconds (auto-cleaned by Redis)
 import logging
 
 from fastapi import Depends, Request, Response
-from fastapi.responses import JSONResponse
 
 from src.db.redis_client import check_rate_limit, get_rate_limit_ttl
 from src.auth.utils import decode_token

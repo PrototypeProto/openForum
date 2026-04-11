@@ -13,22 +13,19 @@ Covers:
                        wrong role, user not in DB
 """
 
-import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from src.auth.schemas import AccessTokenUserData
+from src.auth.utils import create_access_token, decode_token
 from src.db.enums import MemberRoleEnum
 from src.db.redis_client import (
     add_jti_to_blocklist,
     add_registered_user,
-    token_in_blocklist,
     get_user,
+    token_in_blocklist,
 )
-from src.auth.utils import create_access_token, decode_token
-from src.auth.schemas import AccessTokenUserData
-
-from tests.conftest import make_user, make_access_token, auth_cookies
-
+from tests.conftest import auth_cookies, make_access_token, make_user
 
 # ── CookieTokenBearer ─────────────────────────────────────────────────────────
 
@@ -43,9 +40,7 @@ class TestCookieTokenBearer:
         r = await client.get("/auth/me", cookies={"access_token": "not.a.jwt"})
         assert r.status_code == 403
 
-    async def test_blocklisted_jti_returns_403(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_blocklisted_jti_returns_403(self, client: AsyncClient, session: AsyncSession):
         user = await make_user(session)
         token = make_access_token(user)
         jti = decode_token(token)["jti"]
@@ -121,9 +116,7 @@ class TestCookieTokenBearer:
 
 
 class TestRoleChecker:
-    async def test_redis_cache_hit_allows_access(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_redis_cache_hit_allows_access(self, client: AsyncClient, session: AsyncSession):
         """Role resolved from Redis cache — no DB hit needed."""
         user = await make_user(session, username="cached", role=MemberRoleEnum.USER)
         token = make_access_token(user)
@@ -132,9 +125,7 @@ class TestRoleChecker:
         r = await client.get("/auth/me", cookies=auth_cookies(token))
         assert r.status_code == 200
 
-    async def test_db_fallback_backfills_redis(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_db_fallback_backfills_redis(self, client: AsyncClient, session: AsyncSession):
         """
         On a cold Redis cache, RoleChecker must query the DB and then write
         the role back into Redis so the next request is a cache hit.
@@ -152,9 +143,7 @@ class TestRoleChecker:
         cached_role = await get_user(user.username)
         assert cached_role == MemberRoleEnum.VIP
 
-    async def test_wrong_role_returns_403(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_wrong_role_returns_403(self, client: AsyncClient, session: AsyncSession):
         """A USER cannot access an admin-only endpoint."""
         user = await make_user(session, username="notadmin", role=MemberRoleEnum.USER)
         token = make_access_token(user)
@@ -164,9 +153,7 @@ class TestRoleChecker:
         assert r.status_code == 403
         assert "permissions" in r.json()["detail"].lower()
 
-    async def test_admin_can_access_admin_route(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_admin_can_access_admin_route(self, client: AsyncClient, session: AsyncSession):
         user = await make_user(session, username="isadmin", role=MemberRoleEnum.ADMIN)
         token = make_access_token(user)
         await add_registered_user(user.username, MemberRoleEnum.ADMIN)
@@ -174,9 +161,7 @@ class TestRoleChecker:
         r = await client.get("/admin/users", cookies=auth_cookies(token))
         assert r.status_code == 200
 
-    async def test_vip_cannot_access_admin_route(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_vip_cannot_access_admin_route(self, client: AsyncClient, session: AsyncSession):
         user = await make_user(session, username="vipuser", role=MemberRoleEnum.VIP)
         token = make_access_token(user)
         await add_registered_user(user.username, MemberRoleEnum.VIP)
@@ -184,9 +169,7 @@ class TestRoleChecker:
         r = await client.get("/admin/users", cookies=auth_cookies(token))
         assert r.status_code == 403
 
-    async def test_vip_can_access_user_route(
-        self, client: AsyncClient, session: AsyncSession
-    ):
+    async def test_vip_can_access_user_route(self, client: AsyncClient, session: AsyncSession):
         """VIP is a superset of USER — must be allowed on require_user routes."""
         user = await make_user(session, username="viponforum", role=MemberRoleEnum.VIP)
         token = make_access_token(user)

@@ -1,18 +1,15 @@
-from typing import Optional, Union, Annotated
 '''
     Optional[type(s)]
     Union() or (type | None)
     Annotated[type, "annotation textr"]
 '''
-from fastapi import FastAPI, Header, APIRouter
-from fastapi import status
-from fastapi.exceptions import HTTPException
+from fastapi import Header, APIRouter
 
 router = APIRouter(prefix="", tags=["root"])
 
 # @root_router.get("/", status_code=200 )
 # async def welcome():
-#     return "You have reached the API" 
+#     return "You have reached the API"
 
 @router.get("/")
 async def get_headers(
@@ -22,7 +19,7 @@ async def get_headers(
     host: str = Header(None)
 ):
     request_headers = {}
-    
+
     request_headers["Accept"] = accept
     request_headers["Content-Type"] = content_type
     request_headers["User-Agent"] = user_agent

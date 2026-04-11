@@ -1,40 +1,42 @@
 import logging
+from datetime import UTC, datetime
 from typing import Annotated
-from src.config import Config
 
-logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, Response, status
 from sqlmodel.ext.asyncio.session import AsyncSession
-from .service import AuthService
+
+from src.config import Config
 from src.db.main import get_session
-from .utils import verify_passwd, seconds_until_expiry
-from datetime import datetime, timezone
+from src.db.redis_client import (
+    add_jti_to_blocklist,
+    add_registered_user,
+    delete_refresh_token,
+    get_refresh_token_owner,
+    get_user,
+    revoke_all_user_refresh_tokens,
+)
+from src.db.schemas import UserData, UserLogin, UserRegister
+from src.exceptions import (
+    AlreadyExistsError,
+    InvalidCredentialsError,
+    NotFoundError,
+    RefreshTokenReuseError,
+    TokenExpiredError,
+    UnauthorizedError,
+)
+from src.rate_limit import rate_limit
+
 from .dependencies import (
     RefreshTokenBearer,
     access_token_bearer,
     require_user,
 )
-from src.db.redis_client import (
-    add_jti_to_blocklist,
-    store_refresh_token,
-    get_refresh_token_owner,
-    delete_refresh_token,
-    revoke_all_user_refresh_tokens,
-    get_user,
-    add_registered_user,
-)
-from src.db.schemas import UserRegister, UserLogin, UserData
-from .schemas import AccessTokenUserData, LoginResultEnum
-from src.rate_limit import rate_limit
-from src.exceptions import (
-    AlreadyExistsError,
-    InvalidCredentialsError,
-    NotFoundError,
-    TokenExpiredError,
-    SessionRevokedError,
-    RefreshTokenReuseError,
-    UnauthorizedError,
-)
+from .schemas import LoginResultEnum
+from .service import AuthService
+from .utils import seconds_until_expiry, verify_passwd
+
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 auth_service = AuthService()
@@ -54,18 +56,13 @@ async def create_user(
     if not user_data.request:
         user_data.request = None
 
-    if (
-        await auth_service.username_exists(user_data.username, session)
-        != LoginResultEnum.DNE
-    ):
+    if await auth_service.username_exists(user_data.username, session) != LoginResultEnum.DNE:
         raise AlreadyExistsError("User with that username already exists")
 
-    if user_data.email is not None:
-        if (
-            await auth_service.email_exists(user_data.email, session)
-            != LoginResultEnum.DNE
-        ):
-            raise AlreadyExistsError("User with that email already exists")
+    if user_data.email is not None and (
+        await auth_service.email_exists(user_data.email, session) != LoginResultEnum.DNE
+    ):
+        raise AlreadyExistsError("User with that email already exists")
 
     return await auth_service.register_user(user_data, session)
 
@@ -126,9 +123,7 @@ async def rotate_refresh_token(
     session: SessionDependency = None,
     _rl: None = rate_limit("auth:refresh", limit=30, window=60),
 ):
-    if datetime.fromtimestamp(token_details["exp"], tz=timezone.utc) <= datetime.now(
-        timezone.utc
-    ):
+    if datetime.fromtimestamp(token_details["exp"], tz=UTC) <= datetime.now(UTC):
         raise TokenExpiredError("Refresh token has expired")
 
     jti = token_details["jti"]

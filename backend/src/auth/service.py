@@ -1,19 +1,14 @@
 from src.db.models import User, UserID, PendingUser
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, exists
+from sqlmodel import select
 from datetime import date
-from uuid import UUID
 from .utils import (
     generate_passwd_hash,
-    verify_passwd,
     create_access_token,
     decode_token,
     REFRESH_TOKEN_EXPIRY_SECONDS,
-    ACCESS_TOKEN_EXPIRY_SECONDS,
 )
 from .schemas import AccessTokenUserData, LoginResultEnum
-from src.db.enums import MemberRoleEnum
-from src.db.models import PendingUser
 from src.db.schemas import RegisterUserModel
 from src.db.redis_client import add_registered_user, get_user, store_refresh_token
 
