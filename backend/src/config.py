@@ -1,6 +1,11 @@
 import logging
-from pydantic import computed_field
+
+from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Valid ENVIRONMENT values — validated at startup so a typo fails loudly
+# instead of silently behaving like development.
+_VALID_ENVIRONMENTS = {"development", "testing", "production", "staging"}
 
 
 class Settings(BaseSettings):
@@ -15,9 +20,9 @@ class Settings(BaseSettings):
     #
     # Inside docker: compose's `env_file: [./.env, ./backend/.env]`
     # injects all of these into the server-py container env.
-    # Outside docker (e.g. pytest): tests/conftest.py loads
-    # backend/.env.test which sets all five POSTGRES_* values
-    # explicitly so they override anything from backend/.env.
+    # Outside docker (e.g. pytest): tests/conftest.py calls load_dotenv on
+    # backend/.env.test BEFORE this Settings instance is constructed,
+    # populating os.environ with test values that take precedence.
     POSTGRES_HOST: str = "pgsql-db"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str
@@ -42,15 +47,34 @@ class Settings(BaseSettings):
     LOGS_DIR: str = "logs"
 
     # ── Environment ───────────────────────────────────────────
-    # development | production
-    # Drives: cookie secure flag, SQLAlchemy echo, log level
+    # Valid values: development | testing | staging | production
+    #
+    #   development  — local dev server; echo on, cookies insecure, debug logs
+    #   testing      — pytest suite; echo off, scheduler off, rate limits off
+    #   staging      — pre-prod deploy; behaves like production in security
+    #                  posture (secure cookies, no echo) but points at staging
+    #                  infra via its own .env / CI env vars
+    #   production   — live; all hardening on
     ENVIRONMENT: str = "development"
 
+    # ── Rate limiting ─────────────────────────────────────────
+    # Set to true in .env.test so the test suite never hits 429s
+    # from repeated calls to the same endpoint within one test.
+    # Never set true in staging or production.
+    DISABLE_RATE_LIMIT: bool = False
+
     # ── Logging ───────────────────────────────────────────────
-    # If not set explicitly, defaults to DEBUG in development
-    # and INFO in production.
+    # If not set explicitly, defaults to DEBUG in development,
+    # WARNING in testing (keeps pytest output clean), INFO elsewhere.
     # Valid values: DEBUG, INFO, WARNING, ERROR, CRITICAL
     LOG_LEVEL: str = ""
+
+    @field_validator("ENVIRONMENT")
+    @classmethod
+    def _validate_environment(cls, v: str) -> str:
+        if v not in _VALID_ENVIRONMENTS:
+            raise ValueError(f"ENVIRONMENT must be one of {sorted(_VALID_ENVIRONMENTS)}, got {v!r}")
+        return v
 
     model_config = SettingsConfigDict(
         # In Docker: compose injects env vars from ../.env and ./backend/.env
@@ -80,26 +104,54 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
+    # ── Environment predicates ────────────────────────────────
+
+    @property
+    def is_testing(self) -> bool:
+        """True only when running the pytest suite."""
+        return self.ENVIRONMENT == "testing"
+
     @property
     def is_production(self) -> bool:
-        return self.ENVIRONMENT == "production"
+        """True for production and staging — both require full security posture."""
+        return self.ENVIRONMENT in ("production", "staging")
+
+    @property
+    def is_development(self) -> bool:
+        """True only for the local dev server."""
+        return self.ENVIRONMENT == "development"
+
+    # ── Derived settings ──────────────────────────────────────
 
     @property
     def cookie_secure(self) -> bool:
-        """True in production (requires HTTPS), False in development."""
+        """Require HTTPS for cookies in production/staging; off elsewhere."""
         return self.is_production
 
     @property
     def log_level(self) -> int:
-        """Resolved log level as a logging int constant."""
+        """
+        Resolved log level as a logging int constant.
+
+        Priority:
+          1. Explicit LOG_LEVEL env var (any environment)
+          2. WARNING  in testing  — keeps pytest output clean
+          3. INFO     in production/staging
+          4. DEBUG    in development
+        """
         if self.LOG_LEVEL:
             return getattr(logging, self.LOG_LEVEL.upper(), logging.INFO)
+        if self.is_testing:
+            return logging.WARNING
         return logging.INFO if self.is_production else logging.DEBUG
 
     @property
     def db_echo(self) -> bool:
-        """SQLAlchemy query logging — only in development."""
-        return not self.is_production
+        """
+        SQLAlchemy query logging.
+        On only in development — off in testing (reduces noise) and production.
+        """
+        return self.is_development
 
 
 Config = Settings()

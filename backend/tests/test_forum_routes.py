@@ -33,6 +33,19 @@ from src.db.enums import MemberRoleEnum
 from src.db.models import Reply, Thread, Topic, TopicGroup
 from src.db.redis_client import add_registered_user
 from tests.conftest import auth_cookies, make_access_token, make_user
+from tests.constants import (
+    TEST_BODY,
+    TEST_BODY_EDIT,
+    TEST_BODY_UPDATED,
+    TEST_REPLY_BODY,
+    TEST_REPLY_BODY_CREATE,
+    TEST_TITLE,
+    TEST_TITLE_CREATE,
+    TEST_TITLE_UPDATED,
+    TEST_TRIGGER_REPLY_BODY,
+    TEST_TRIGGER_TITLE_1,
+    TEST_TRIGGER_TITLE_2,
+)
 
 # ── Forum data factories ──────────────────────────────────────────────────────
 
@@ -239,12 +252,12 @@ class TestCreateThread:
 
         r = await client.post(
             f"/forum/topics/{topic.topic_id}/threads",
-            json={"title": "My New Thread", "body": "Hello world"},
+            json={"title": TEST_TITLE_CREATE, "body": TEST_BODY},
             cookies=cookies,
         )
         assert r.status_code == 201
         body = r.json()
-        assert body["title"] == "My New Thread"
+        assert body["title"] == TEST_TITLE_CREATE
         assert body["author_username"] == user.username
 
     async def test_locked_topic_returns_403(self, client: AsyncClient, session: AsyncSession):
@@ -253,7 +266,7 @@ class TestCreateThread:
 
         r = await client.post(
             f"/forum/topics/{topic.topic_id}/threads",
-            json={"title": "Nope", "body": "blocked"},
+            json={"title": TEST_TITLE, "body": TEST_BODY},
             cookies=cookies,
         )
         assert r.status_code == 403
@@ -262,7 +275,7 @@ class TestCreateThread:
         _, cookies = await user_with_cookies(session)
         r = await client.post(
             f"/forum/topics/{uuid4()}/threads",
-            json={"title": "x", "body": "y"},
+            json={"title": TEST_TITLE, "body": TEST_BODY},
             cookies=cookies,
         )
         assert r.status_code == 404
@@ -271,7 +284,7 @@ class TestCreateThread:
         topic = await make_topic(session)
         r = await client.post(
             f"/forum/topics/{topic.topic_id}/threads",
-            json={"title": "x", "body": "y"},
+            json={"title": TEST_TITLE, "body": TEST_BODY},
         )
         assert r.status_code == 403
 
@@ -280,7 +293,7 @@ class TestCreateThread:
         topic = await make_topic(session)
         r = await client.post(
             f"/forum/topics/{topic.topic_id}/threads",
-            json={"title": "x" * 201, "body": "body"},
+            json={"title": "x" * 201, "body": TEST_BODY},
             cookies=cookies,
         )
         assert r.status_code == 422
@@ -297,11 +310,11 @@ class TestUpdateThread:
 
         r = await client.patch(
             f"/forum/threads/{thread.thread_id}",
-            json={"title": "Updated Title", "body": "Updated body"},
+            json={"title": TEST_TITLE_UPDATED, "body": TEST_BODY_UPDATED},
             cookies=cookies,
         )
         assert r.status_code == 200
-        assert r.json()["title"] == "Updated Title"
+        assert r.json()["title"] == TEST_TITLE_UPDATED
 
     async def test_non_author_non_admin_returns_403(
         self, client: AsyncClient, session: AsyncSession
@@ -313,7 +326,7 @@ class TestUpdateThread:
 
         r = await client.patch(
             f"/forum/threads/{thread.thread_id}",
-            json={"body": "sneaky edit"},
+            json={"body": TEST_BODY},
             cookies=cookies,
         )
         assert r.status_code == 403
@@ -328,7 +341,7 @@ class TestUpdateThread:
 
         r = await client.patch(
             f"/forum/threads/{thread.thread_id}",
-            json={"body": "admin override"},
+            json={"body": TEST_BODY},
             cookies=admin_cookies,
         )
         assert r.status_code == 200
@@ -480,11 +493,11 @@ class TestCreateReply:
 
         r = await client.post(
             f"/forum/threads/{thread.thread_id}/replies",
-            json={"body": "Great thread!", "parent_reply_id": None},
+            json={"body": TEST_REPLY_BODY_CREATE, "parent_reply_id": None},
             cookies=cookies,
         )
         assert r.status_code == 201
-        assert r.json()["body"] == "Great thread!"
+        assert r.json()["body"] == TEST_REPLY_BODY_CREATE
         assert r.json()["author_username"] == user.username
 
     async def test_locked_thread_returns_403(self, client: AsyncClient, session: AsyncSession):
@@ -496,7 +509,7 @@ class TestCreateReply:
 
         r = await client.post(
             f"/forum/threads/{thread.thread_id}/replies",
-            json={"body": "blocked", "parent_reply_id": None},
+            json={"body": TEST_BODY, "parent_reply_id": None},
             cookies=cookies,
         )
         assert r.status_code == 403
@@ -509,7 +522,7 @@ class TestCreateReply:
 
         r = await client.post(
             f"/forum/threads/{thread.thread_id}/replies",
-            json={"body": "Nested!", "parent_reply_id": str(parent.reply_id)},
+            json={"body": TEST_REPLY_BODY, "parent_reply_id": str(parent.reply_id)},
             cookies=cookies,
         )
         assert r.status_code == 201
@@ -522,7 +535,7 @@ class TestCreateReply:
 
         r = await client.post(
             f"/forum/threads/{thread.thread_id}/replies",
-            json={"body": "bad parent", "parent_reply_id": str(uuid4())},
+            json={"body": TEST_BODY, "parent_reply_id": str(uuid4())},
             cookies=cookies,
         )
         assert r.status_code == 400
@@ -540,11 +553,11 @@ class TestUpdateReply:
 
         r = await client.patch(
             f"/forum/replies/{reply.reply_id}",
-            json={"body": "edited content"},
+            json={"body": TEST_BODY_EDIT},
             cookies=cookies,
         )
         assert r.status_code == 200
-        assert r.json()["body"] == "edited content"
+        assert r.json()["body"] == TEST_BODY_EDIT
 
     async def test_non_author_returns_403(self, client: AsyncClient, session: AsyncSession):
         author, _ = await user_with_cookies(session, username="replyauthor")
@@ -555,7 +568,7 @@ class TestUpdateReply:
 
         r = await client.patch(
             f"/forum/replies/{reply.reply_id}",
-            json={"body": "sneaky"},
+            json={"body": TEST_BODY},
             cookies=cookies,
         )
         assert r.status_code == 403
@@ -656,12 +669,12 @@ class TestTriggerMaintainedCounters:
 
         await trigger_client.post(
             f"/forum/topics/{topic.topic_id}/threads",
-            json={"title": "T1", "body": "body"},
+            json={"title": TEST_TRIGGER_TITLE_1, "body": TEST_BODY},
             cookies=cookies,
         )
         await trigger_client.post(
             f"/forum/topics/{topic.topic_id}/threads",
-            json={"title": "T2", "body": "body"},
+            json={"title": TEST_TRIGGER_TITLE_2, "body": TEST_BODY},
             cookies=cookies,
         )
 
@@ -678,7 +691,7 @@ class TestTriggerMaintainedCounters:
 
         await trigger_client.post(
             f"/forum/threads/{thread.thread_id}/replies",
-            json={"body": "reply 1", "parent_reply_id": None},
+            json={"body": TEST_TRIGGER_REPLY_BODY, "parent_reply_id": None},
             cookies=cookies,
         )
 

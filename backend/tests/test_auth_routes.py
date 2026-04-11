@@ -23,14 +23,22 @@ from tests.conftest import (
     make_refresh_token,
     make_user,
 )
+from tests.constants import (
+    TEST_PASSWORD,
+    TEST_PASSWORD_WRONG,
+    TEST_SIGNUP_PASSWORD,
+    TEST_SIGNUP_PASSWORD_DUPE,
+)
 
 # ── Login ─────────────────────────────────────────────────────────────────────
 
 
 class TestLogin:
     async def test_login_success_sets_cookies(self, client: AsyncClient, session: AsyncSession):
-        await make_user(session, username="loginuser", password="pass123")  # noqa: S106
-        r = await client.post("/auth/login", json={"username": "loginuser", "password": "pass123"})
+        await make_user(session, username="loginuser", password=TEST_PASSWORD)
+        r = await client.post(
+            "/auth/login", json={"username": "loginuser", "password": TEST_PASSWORD}
+        )
 
         assert r.status_code == 200
         assert "access_token" in r.cookies
@@ -43,9 +51,11 @@ class TestLogin:
             session,
             username="roleuser",
             role=MemberRoleEnum.VIP,
-            password="pass",  # noqa: S106
+            password=TEST_PASSWORD,
         )
-        r = await client.post("/auth/login", json={"username": "roleuser", "password": "pass"})
+        r = await client.post(
+            "/auth/login", json={"username": "roleuser", "password": TEST_PASSWORD}
+        )
 
         assert r.status_code == 200
         body = r.json()
@@ -57,19 +67,25 @@ class TestLogin:
     async def test_login_wrong_password_returns_403(
         self, client: AsyncClient, session: AsyncSession
     ):
-        await make_user(session, username="wrongpass", password="correct")  # noqa: S106
-        r = await client.post("/auth/login", json={"username": "wrongpass", "password": "wrong"})
+        await make_user(session, username="wrongpass", password=TEST_PASSWORD)
+        r = await client.post(
+            "/auth/login", json={"username": "wrongpass", "password": TEST_PASSWORD_WRONG}
+        )
         assert r.status_code == 403
 
     async def test_login_unknown_user_returns_403(self, client: AsyncClient):
-        r = await client.post("/auth/login", json={"username": "nobody", "password": "x"})
+        r = await client.post(
+            "/auth/login", json={"username": "nobody", "password": TEST_PASSWORD_WRONG}
+        )
         assert r.status_code == 403
 
     async def test_login_stores_refresh_jti_in_redis(
         self, client: AsyncClient, session: AsyncSession
     ):
-        await make_user(session, username="jtiuser", password="pass")  # noqa: S106
-        r = await client.post("/auth/login", json={"username": "jtiuser", "password": "pass"})
+        await make_user(session, username="jtiuser", password=TEST_PASSWORD)
+        r = await client.post(
+            "/auth/login", json={"username": "jtiuser", "password": TEST_PASSWORD}
+        )
 
         refresh_token = r.cookies.get("refresh_token")
         assert refresh_token is not None
@@ -79,8 +95,8 @@ class TestLogin:
         assert owner == "jtiuser"
 
     async def test_login_token_has_no_role_claim(self, client: AsyncClient, session: AsyncSession):
-        await make_user(session, username="norole", password="pass")  # noqa: S106
-        r = await client.post("/auth/login", json={"username": "norole", "password": "pass"})
+        await make_user(session, username="norole", password=TEST_PASSWORD)
+        r = await client.post("/auth/login", json={"username": "norole", "password": TEST_PASSWORD})
 
         access_token = r.cookies.get("access_token")
         token_data = decode_token(access_token)
@@ -294,7 +310,7 @@ class TestSignup:
             "/auth/signup",
             json={
                 "username": "newbie",
-                "password": "strongpass!234",
+                "password": TEST_SIGNUP_PASSWORD,
                 "email": "newbie@example.com",
                 "nickname": None,
                 "request": None,
@@ -310,7 +326,7 @@ class TestSignup:
             "/auth/signup",
             json={
                 "username": "taken",
-                "password": "longpassword12",
+                "password": TEST_SIGNUP_PASSWORD_DUPE,
                 "email": None,
                 "nickname": None,
                 "request": None,

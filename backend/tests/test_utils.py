@@ -17,21 +17,22 @@ from src.auth.utils import (
     seconds_until_expiry,
     verify_passwd,
 )
+from tests.constants import TEST_PASSWORD, TEST_PASSWORD_WRONG
 
 # ── Password hashing ──────────────────────────────────────────────────────────
 
 
 class TestPasswordHashing:
     def test_hash_is_not_plaintext(self):
-        assert generate_passwd_hash("secret") != "secret"
+        assert generate_passwd_hash(TEST_PASSWORD) != TEST_PASSWORD
 
     def test_correct_password_verifies(self):
-        hashed = generate_passwd_hash("correct")
-        assert verify_passwd("correct", hashed) is True
+        hashed = generate_passwd_hash(TEST_PASSWORD)
+        assert verify_passwd(TEST_PASSWORD, hashed) is True
 
     def test_wrong_password_fails(self):
-        hashed = generate_passwd_hash("correct")
-        assert verify_passwd("wrong", hashed) is False
+        hashed = generate_passwd_hash(TEST_PASSWORD)
+        assert verify_passwd(TEST_PASSWORD_WRONG, hashed) is False
 
     def test_empty_password_hashes_and_verifies(self):
         hashed = generate_passwd_hash("")
