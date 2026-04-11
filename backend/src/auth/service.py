@@ -70,6 +70,12 @@ class AuthService:
         )
 
         refresh_data = decode_token(refresh_token)
+        if refresh_data is None:
+            # Should never happen — we just created this token with a valid
+            # secret and a positive expiry. If it does, something is deeply
+            # wrong (secret mismatch, clock skew, etc.).
+            raise RuntimeError("Failed to decode freshly issued refresh token")
+
         await store_refresh_token(
             jti=refresh_data["jti"],
             username=user.username,

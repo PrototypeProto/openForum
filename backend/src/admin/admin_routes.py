@@ -1,17 +1,20 @@
-from typing import Annotated, List
-from fastapi import APIRouter, Depends, Body, status
+from typing import Annotated
+
+from fastapi import APIRouter, Body, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
-from .service import AdminService
-from src.auth.service import AuthService
-from src.db.main import get_session
+
 from src.auth.dependencies import require_admin
+from src.auth.service import AuthService
 from src.db.enums import MemberRoleEnum
+from src.db.main import get_session
 from src.db.schemas import *
 from src.exceptions import (
-    NotFoundError,
     AlreadyVerifiedError,
     InternalError,
+    NotFoundError,
 )
+
+from .service import AdminService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 admin_service = AdminService()
@@ -19,7 +22,7 @@ auth_service = AuthService()
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 
-@router.get("/users", response_model=List[UserRead])
+@router.get("/users", response_model=list[UserRead])
 async def get_verified_users(
     session: SessionDependency,
     token_details: dict = require_admin,
@@ -27,7 +30,7 @@ async def get_verified_users(
     return await admin_service.get_users(session)
 
 
-@router.get("/users/pending", response_model=List[PendingUserRead])
+@router.get("/users/pending", response_model=list[PendingUserRead])
 async def get_pending_users(
     session: SessionDependency,
     token_details: dict = require_admin,

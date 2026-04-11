@@ -322,7 +322,7 @@ class TestSignup:
             "/auth/signup",
             json={
                 "username": "newbie",
-                "password": "strongpass",
+                "password": "strongpass!234",
                 "email": "newbie@example.com",
                 "nickname": None,
                 "request": None,
@@ -338,7 +338,7 @@ class TestSignup:
             "/auth/signup",
             json={
                 "username": "taken",
-                "password": "pass",
+                "password": "longpassword12",
                 "email": None,
                 "nickname": None,
                 "request": None,

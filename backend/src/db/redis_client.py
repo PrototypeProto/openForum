@@ -175,7 +175,10 @@ async def get_user(username: str) -> MemberRoleEnum | None:
     try:
         return MemberRoleEnum(raw.decode())
     except ValueError:
-        raise Exception(f"Unknown role value in Redis for user '{username}': {raw}")
+        # Corrupted cache entry — evict it so the caller falls through
+        # to the DB and backfills a correct value on the next request.
+        await _client.delete(_user_key(username))
+        return None
 
 
 async def remove_user(username: str) -> None:

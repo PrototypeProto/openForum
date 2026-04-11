@@ -1,17 +1,16 @@
+from datetime import date
+
+from sqlmodel import delete, desc, func, select
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from src.auth.service import AuthService
+from src.db.enums import MemberRoleEnum
 from src.db.models import (
-    User,
     PendingUser,
     RejectedUser,
+    User,
 )
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, desc, update, insert, delete, func
-from datetime import date, datetime, timedelta
-from uuid import UUID
-from typing import List, Tuple
-from src.db.enums import MemberRoleEnum
-from src.db.models import PendingUser
-from src.db.redis_client import add_registered_user, get_user, remove_user
-from src.auth.service import AuthService
+from src.db.redis_client import add_registered_user, get_user
 from src.db.schemas import *
 
 auth_service = AuthService()
@@ -26,11 +25,9 @@ class AdminService:
     # # # # # # # # # # # # # # # # # # # # # # # #
     #   Core Methods
     # # # # # # # # # # # # # # # # # # # # # # # #
-    async def get_pending_users(self, session: AsyncSession) -> List[PendingUserRead]:
+    async def get_pending_users(self, session: AsyncSession) -> list[PendingUserRead]:
         """Returns full detail of all pending users for the admin approval view."""
-        result = await session.exec(
-            select(PendingUser).order_by(PendingUser.join_date.asc())
-        )
+        result = await session.exec(select(PendingUser).order_by(PendingUser.join_date.asc()))
         rows = result.all()
         return [
             PendingUserRead(
@@ -57,7 +54,7 @@ class AdminService:
         await add_registered_user(user.username, user.role)
         return user
 
-    async def get_users(self, session: AsyncSession) -> List[UserRead]:
+    async def get_users(self, session: AsyncSession) -> list[UserRead]:
         query = select(User).order_by(desc(User.join_date))
         result = await session.exec(query)
         return [
@@ -93,9 +90,7 @@ class AdminService:
         await session.refresh(user)
         return user
 
-    async def reject_pending_user(
-        self, username: str, session: AsyncSession
-    ) -> RejectedUserRead:
+    async def reject_pending_user(self, username: str, session: AsyncSession) -> RejectedUserRead:
         """
         Copies the pending_user row to rejected_user, then deletes the pending_user entry.
         Returns the created RejectedUser record.
@@ -136,16 +131,12 @@ class AdminService:
         # Count verified users grouped by role in one query
         role_counts = (
             await session.exec(
-                select(User.role, func.count(User.user_id).label("cnt")).group_by(
-                    User.role
-                )
+                select(User.role, func.count(User.user_id).label("cnt")).group_by(User.role)
             )
         ).all()
 
         # Count pending users
-        pending_count = (
-            await session.exec(select(func.count(PendingUser.user_id)))
-        ).one()
+        pending_count = (await session.exec(select(func.count(PendingUser.user_id)))).one()
 
         stats = UserStats(pending=pending_count)
         for role, count in role_counts:
@@ -198,20 +189,21 @@ class AdminService:
         await add_registered_user(username, role)
         return role == MemberRoleEnum.ADMIN
 
-    async def verify_admin(self, token_details: dict, session: AsyncSession) -> bool:
-        # check if current user is admin
-        if not token_details or not token_details.get("user"):
-            return False
+    # NOTE: deprecated after rolechecking implemented. Subject to deletion
+    # async def verify_admin(self, token_details: dict, session: AsyncSession) -> bool:
+    #     # check if current user is admin
+    #     if not token_details or not token_details.get("user"):
+    #         return False
 
-        if not await self.is_verified_user(
-            token_details.get("user").get("username"), session
-        ):
-            return False  # TODO: return Exception/Error (later when creating custom errors)
+    #     if not await self.is_verified_user(
+    #         token_details.get("user").get("username"), session
+    #     ):
+    #         return False  # TODO: return Exception/Error (later when creating custom errors)
 
-        # Check if user is authorized to exec admin priv
-        if not await self.is_user_admin(
-            token_details.get("user").get("username"), session
-        ):
-            return False
-            # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid permission to access requested resources")
-        return True
+    #     # Check if user is authorized to exec admin priv
+    #     return await self.is_user_admin(
+    #         token_details.get("user").get("username"), session
+    #     ):
+    #         return False
+    #         # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid permission to access requested resources")
+    #     return True

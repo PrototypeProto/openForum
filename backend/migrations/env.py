@@ -7,15 +7,44 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 from sqlmodel import SQLModel
-from src.config import Config
 
 
-# Allow overriding the DB URL at the command line for running migrations
-# against a non-default database (e.g. the test DB):
-#   alembic -x db_url=postgresql+asyncpg://... upgrade head
-# Falls back to Config.DB_URL (from .env) if not provided.
+# Read the -x db_url override BEFORE importing Config.
+#
+# When the caller passes -x db_url=... they're explicitly telling us which
+# database to migrate, and we shouldn't need to instantiate Config (which
+# requires POSTGRES_USER/PASSWORD/DB to be present in the environment).
+# This lets you run migrations against the test DB from a host shell that
+# only has the test container's connection string and no other env vars:
+#
+#   alembic -x db_url=postgresql+asyncpg://postgres:postgres@localhost:5433/portfolio_test upgrade head
+#
+# Falls back to Config.DB_URL on the no-override path, which is the normal
+# in-container "alembic upgrade head" flow where compose has injected all
+# the POSTGRES_* values.
 _x_db_url = context.get_x_argument(as_dictionary=True).get("db_url")
-database_url = _x_db_url if _x_db_url else Config.DB_URL
+
+if _x_db_url:
+    database_url = _x_db_url
+else:
+    from src.config import Config
+    database_url = Config.DB_URL
+
+
+# Import models so SQLModel.metadata is populated for autogenerate.
+# This import chain hits src.db.main which imports Config, so on the
+# override path it can still fail if env vars aren't set. That's only
+# relevant for `alembic revision --autogenerate`, not plain `upgrade`,
+# which alembic runs without consulting target_metadata.
+try:
+    import src.db.models  # noqa: F401
+    target_metadata = SQLModel.metadata
+except Exception:
+    # If model import fails (e.g. running upgrade with -x db_url against
+    # the test DB from a host without env vars set), use empty metadata.
+    # Plain upgrade doesn't need target_metadata; only autogenerate does.
+    target_metadata = None
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -26,20 +55,8 @@ config = context.config
 # The async URL is passed directly to async_engine_from_config instead.
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-target_metadata = SQLModel.metadata
-
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
 
 
 def run_migrations_offline() -> None:
@@ -52,7 +69,6 @@ def run_migrations_offline() -> None:
 
     Calls to context.execute() here emit the given string to the
     script output.
-
     """
     context.configure(
         url=database_url,
@@ -75,7 +91,6 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """In this scenario we need to create an Engine
     and associate a connection with the context.
-
     """
 
     connectable = async_engine_from_config(
@@ -94,7 +109,6 @@ async def run_async_migrations() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-
     asyncio.run(run_async_migrations())
 
 

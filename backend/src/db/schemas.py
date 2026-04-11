@@ -49,7 +49,7 @@ TEMPFS_DEFAULT_LIFETIME = 1_800  # 30 minutes
 
 
 class UserBaseModel(SQLModel):
-    username: str = Field(min_length=2, max_length=32, pattern=USERNAME_PATTERN)
+    username: str = Field(min_length=2, max_length=32, regex=USERNAME_PATTERN)
     email: Optional[EmailStr] = Field(default=None, max_length=254)
     nickname: Optional[str] = Field(default=None, max_length=NICKNAME_MAX_LEN)
 
@@ -111,7 +111,7 @@ class UserStats(BaseModel):
 
 
 class UserBase(SQLModel):
-    username: str = Field(min_length=2, max_length=32, pattern=USERNAME_PATTERN)
+    username: str = Field(min_length=2, max_length=32, regex=USERNAME_PATTERN)
     email: Optional[EmailStr] = Field(default=None, max_length=254)
     nickname: Optional[str] = Field(default=None, max_length=NICKNAME_MAX_LEN)
 
@@ -125,7 +125,7 @@ class UserRegister(UserBase):
 
 
 class UserLogin(SQLModel):
-    username: str = Field(min_length=2, max_length=32, pattern=USERNAME_PATTERN)
+    username: str = Field(min_length=2, max_length=32, regex=USERNAME_PATTERN)
     password: str = Field(min_length=1, max_length=PASSWORD_MAX_LEN)
 
 

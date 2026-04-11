@@ -29,12 +29,16 @@ Key format:  rate:<identifier>:<route_key>
 TTL:         window_seconds (auto-cleaned by Redis)
 """
 
+import logging
+
 from fastapi import Depends, Request, Response
 from fastapi.responses import JSONResponse
 
 from src.db.redis_client import check_rate_limit, get_rate_limit_ttl
 from src.auth.utils import decode_token
 from src.exceptions import RateLimitError
+
+logger = logging.getLogger(__name__)
 
 
 def _get_identifier(request: Request) -> str:
@@ -86,13 +90,20 @@ def rate_limit(route_key: str, limit: int, window: int):
         → 10 requests per 60 seconds per identifier
     """
     async def _check(request: Request, response: Response) -> None:
-        identifier = _get_identifier(request)
-        count, remaining = await check_rate_limit(
-            identifier=identifier,
-            route_key=route_key,
-            limit=limit,
-            window_seconds=window,
-        )
+        try:
+            identifier = _get_identifier(request)
+            count, remaining = await check_rate_limit(
+                identifier=identifier,
+                route_key=route_key,
+                limit=limit,
+                window_seconds=window,
+            )
+        except Exception:
+            # Redis is down — fail open. Rate limiting is a defence layer,
+            # not core functionality. Log so we notice, but don't block
+            # every request because the cache is unreachable.
+            logger.warning("rate limit check failed (Redis unavailable?)", exc_info=True)
+            return
 
         # Always add informational headers
         response.headers["X-RateLimit-Limit"] = str(limit)
@@ -100,7 +111,10 @@ def rate_limit(route_key: str, limit: int, window: int):
         response.headers["X-RateLimit-Window"] = str(window)
 
         if count > limit:
-            retry_after = await get_rate_limit_ttl(identifier, route_key)
+            try:
+                retry_after = await get_rate_limit_ttl(identifier, route_key)
+            except Exception:
+                retry_after = window
             response.headers["Retry-After"] = str(retry_after)
             raise RateLimitError(
                 f"Rate limit exceeded. Try again in {retry_after} seconds."

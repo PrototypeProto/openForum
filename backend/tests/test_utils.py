@@ -6,7 +6,6 @@ No I/O, no DB, no Redis — these run in microseconds.
 """
 
 import time
-import pytest
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
@@ -114,15 +113,22 @@ class TestDecodeToken:
     def test_returns_none_for_garbage(self):
         assert decode_token("not.a.token") is None
 
-    def test_raises_for_expired_token(self):
+    def test_expired_token_returns_none(self):
         token = create_access_token(user_data=USER_DATA, expiry_seconds=-1)
-        with pytest.raises(Exception, match="expired"):
-            decode_token(token)
+        assert decode_token(token) is None
 
     def test_tampered_signature_returns_none(self):
         token = create_access_token(user_data=USER_DATA)
-        # Flip the last character of the signature
-        tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+        # Flip a character in the middle of the signature. Flipping the
+        # LAST character is unreliable because base64url ignores the bottom
+        # bits of the final character when they don't correspond to a full
+        # output byte — so e.g. "A" and "B" at the end can decode to the
+        # same signature bytes. A middle character always covers 6 real bits.
+        header_b64, payload_b64, sig_b64 = token.split(".")
+        mid = len(sig_b64) // 2
+        flipped_char = "A" if sig_b64[mid] != "A" else "B"
+        tampered_sig = sig_b64[:mid] + flipped_char + sig_b64[mid + 1:]
+        tampered = f"{header_b64}.{payload_b64}.{tampered_sig}"
         assert decode_token(tampered) is None
 
 

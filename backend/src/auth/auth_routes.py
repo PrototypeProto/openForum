@@ -1,5 +1,8 @@
+import logging
 from typing import Annotated
 from src.config import Config
+
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, Response, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from .service import AuthService
@@ -81,8 +84,12 @@ async def login_user(
     if user is None or not verify_passwd(login_data.password, user.password_hash):
         raise InvalidCredentialsError()
 
-    if not await get_user(user.username):
-        await add_registered_user(user.username, user.role)
+    # Populate Redis role cache — non-critical, login works without it
+    try:
+        if not await get_user(user.username):
+            await add_registered_user(user.username, user.role)
+    except Exception:
+        logger.warning("Redis cache population failed during login for %s", user.username)
 
     access_token, refresh_token = await auth_service.generate_tokens(user)
 
@@ -189,9 +196,15 @@ async def revoke_token(
     jti = token_details["jti"]
     username = token_details["user"]["username"]
 
-    ttl = seconds_until_expiry(token_details)
-    await add_jti_to_blocklist(jti, max(ttl, 1))
-    await revoke_all_user_refresh_tokens(username)
+    # Revoke tokens in Redis. If Redis is down the tokens remain valid
+    # until they expire naturally, but the cookies are still cleared
+    # client-side which is the primary logout mechanism.
+    try:
+        ttl = seconds_until_expiry(token_details)
+        await add_jti_to_blocklist(jti, max(ttl, 1))
+        await revoke_all_user_refresh_tokens(username)
+    except Exception:
+        logger.warning("Redis revocation failed during logout for %s", username)
 
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")

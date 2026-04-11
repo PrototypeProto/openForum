@@ -25,11 +25,12 @@ Redis is flushed with FLUSHALL after each test.
 """
 
 import os
+from collections.abc import AsyncGenerator
+from datetime import date
+from uuid import uuid4
+
 import pytest
 import pytest_asyncio
-from uuid import uuid4
-from datetime import date
-from typing import AsyncGenerator
 from dotenv import load_dotenv
 
 # Load .env.test before any src imports so Config picks up the test values
@@ -38,26 +39,23 @@ load_dotenv(
     override=True,
 )
 
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncConnection
-from sqlalchemy.orm import sessionmaker
-from sqlmodel import SQLModel
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 # ── App imports (after env is loaded) ────────────────────────────────────────
-from src.__init__ import app
-from src.db.main import get_session
-from src.db.redis_client import _client as redis_client
-
-from src.db.models import User, UserID, PendingUser
-from src.db.enums import MemberRoleEnum
-from src.auth.utils import (
-    create_access_token,
-    generate_passwd_hash,
-    decode_token,
-    REFRESH_TOKEN_EXPIRY_SECONDS,
-)
+from src.app import app
 from src.auth.schemas import AccessTokenUserData
+from src.auth.utils import (
+    REFRESH_TOKEN_EXPIRY_SECONDS,
+    create_access_token,
+    decode_token,
+    generate_passwd_hash,
+)
+from src.db.enums import MemberRoleEnum
+from src.db.main import get_session
+from src.db.models import User, UserID
+from src.db.redis_client import _client as redis_client
 from src.db.redis_client import store_refresh_token
 
 # ── Test DB URL ───────────────────────────────────────────────────────────────
@@ -70,7 +68,7 @@ TEST_DB_URL = os.environ["TEST_DB_URL"]
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
-async def engine() -> AsyncGenerator[AsyncEngine, None]:
+async def engine() -> AsyncGenerator[AsyncEngine]:
     """
     Connects to the test database managed by Alembic.
 
@@ -90,7 +88,7 @@ async def engine() -> AsyncGenerator[AsyncEngine, None]:
 
 
 @pytest_asyncio.fixture
-async def connection(engine: AsyncEngine) -> AsyncGenerator[AsyncConnection, None]:
+async def connection(engine: AsyncEngine) -> AsyncGenerator[AsyncConnection]:
     """Raw connection with an outer transaction for per-test rollback isolation."""
     async with engine.connect() as conn:
         await conn.begin()
@@ -99,7 +97,7 @@ async def connection(engine: AsyncEngine) -> AsyncGenerator[AsyncConnection, Non
 
 
 @pytest_asyncio.fixture
-async def session(connection: AsyncConnection) -> AsyncGenerator[AsyncSession, None]:
+async def session(connection: AsyncConnection) -> AsyncGenerator[AsyncSession]:
     """
     AsyncSession bound to the rolled-back connection.
     Every test gets a clean slate — no data leaks between tests.
@@ -130,7 +128,7 @@ async def flush_redis():
 
 
 @pytest_asyncio.fixture
-async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """
     AsyncClient wired to the app with the test DB session injected.
     Use this for HTTP-level integration tests.
@@ -233,7 +231,7 @@ def auth_cookies(access_token: str, refresh_token: str = "") -> dict:
 
 
 @pytest_asyncio.fixture
-async def trigger_session() -> AsyncGenerator[AsyncSession, None]:
+async def trigger_session() -> AsyncGenerator[AsyncSession]:
     """
     A session backed by its own dedicated engine — required for trigger tests.
 
@@ -255,7 +253,7 @@ async def trigger_session() -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture
 async def trigger_client(
     trigger_session: AsyncSession,
-) -> AsyncGenerator[AsyncClient, None]:
+) -> AsyncGenerator[AsyncClient]:
     """
     AsyncClient wired to trigger_session (real commits) instead of the
     savepoint session. Use alongside trigger_session in trigger tests.
