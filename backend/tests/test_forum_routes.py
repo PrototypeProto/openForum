@@ -37,11 +37,20 @@ from tests.constants import (
     TEST_BODY,
     TEST_BODY_EDIT,
     TEST_BODY_UPDATED,
+    TEST_FACTORY_REPLY_BODY,
+    TEST_FACTORY_THREAD_BODY,
+    TEST_FACTORY_THREAD_TITLE,
     TEST_REPLY_BODY,
     TEST_REPLY_BODY_CREATE,
     TEST_TITLE,
+    TEST_TITLE_ALPHA,
+    TEST_TITLE_BETA,
     TEST_TITLE_CREATE,
+    TEST_TITLE_DELETED,
+    TEST_TITLE_NORMAL,
+    TEST_TITLE_PINNED,
     TEST_TITLE_UPDATED,
+    TEST_TITLE_VISIBLE,
     TEST_TRIGGER_REPLY_BODY,
     TEST_TRIGGER_TITLE_1,
     TEST_TRIGGER_TITLE_2,
@@ -84,8 +93,8 @@ async def make_thread(
     *,
     topic_id,
     author_id,
-    title: str = "Test Thread",
-    body: str = "Thread body.",
+    title: str = TEST_FACTORY_THREAD_TITLE,
+    body: str = TEST_FACTORY_THREAD_BODY,
     is_pinned: bool = False,
     is_locked: bool = False,
     is_deleted: bool = False,
@@ -110,7 +119,7 @@ async def make_reply(
     *,
     thread_id,
     author_id,
-    body: str = "Reply body.",
+    body: str = TEST_FACTORY_REPLY_BODY,
     parent_reply_id=None,
 ) -> Reply:
     reply = Reply(
@@ -187,17 +196,17 @@ class TestListThreads:
         user, cookies = await user_with_cookies(session)
         topic = await make_topic(session)
         await make_thread(
-            session, topic_id=topic.topic_id, author_id=user.user_id, title="Alpha Thread"
+            session, topic_id=topic.topic_id, author_id=user.user_id, title=TEST_TITLE_ALPHA
         )
         await make_thread(
-            session, topic_id=topic.topic_id, author_id=user.user_id, title="Beta Thread"
+            session, topic_id=topic.topic_id, author_id=user.user_id, title=TEST_TITLE_BETA
         )
 
         r = await client.get(f"/forum/topics/{topic.topic_id}/threads", cookies=cookies)
         assert r.status_code == 200
         titles = [t["title"] for t in r.json()["items"]]
-        assert "Alpha Thread" in titles
-        assert "Beta Thread" in titles
+        assert TEST_TITLE_ALPHA in titles
+        assert TEST_TITLE_BETA in titles
 
     async def test_deleted_threads_excluded(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
@@ -206,17 +215,21 @@ class TestListThreads:
             session,
             topic_id=topic.topic_id,
             author_id=user.user_id,
-            title="Visible",
+            title=TEST_TITLE_VISIBLE,
             is_deleted=False,
         )
         await make_thread(
-            session, topic_id=topic.topic_id, author_id=user.user_id, title="Gone", is_deleted=True
+            session,
+            topic_id=topic.topic_id,
+            author_id=user.user_id,
+            title=TEST_TITLE_DELETED,
+            is_deleted=True,
         )
 
         r = await client.get(f"/forum/topics/{topic.topic_id}/threads", cookies=cookies)
         titles = [t["title"] for t in r.json()["items"]]
-        assert "Visible" in titles
-        assert "Gone" not in titles
+        assert TEST_TITLE_VISIBLE in titles
+        assert TEST_TITLE_DELETED not in titles
 
     async def test_pinned_threads_come_first(self, client: AsyncClient, session: AsyncSession):
         user, cookies = await user_with_cookies(session)
@@ -225,16 +238,20 @@ class TestListThreads:
             session,
             topic_id=topic.topic_id,
             author_id=user.user_id,
-            title="Normal",
+            title=TEST_TITLE_NORMAL,
             is_pinned=False,
         )
         await make_thread(
-            session, topic_id=topic.topic_id, author_id=user.user_id, title="Pinned", is_pinned=True
+            session,
+            topic_id=topic.topic_id,
+            author_id=user.user_id,
+            title=TEST_TITLE_PINNED,
+            is_pinned=True,
         )
 
         r = await client.get(f"/forum/topics/{topic.topic_id}/threads", cookies=cookies)
         items = r.json()["items"]
-        assert items[0]["title"] == "Pinned"
+        assert items[0]["title"] == TEST_TITLE_PINNED
 
     async def test_unknown_topic_returns_404(self, client: AsyncClient, session: AsyncSession):
         _, cookies = await user_with_cookies(session)

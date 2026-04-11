@@ -17,7 +17,7 @@ from src.auth.utils import (
     seconds_until_expiry,
     verify_passwd,
 )
-from tests.constants import TEST_PASSWORD, TEST_PASSWORD_WRONG
+from tests.constants import TEST_HASH_EMPTY, TEST_HASH_SAME, TEST_PASSWORD, TEST_PASSWORD_WRONG
 
 # ── Password hashing ──────────────────────────────────────────────────────────
 
@@ -35,13 +35,13 @@ class TestPasswordHashing:
         assert verify_passwd(TEST_PASSWORD_WRONG, hashed) is False
 
     def test_empty_password_hashes_and_verifies(self):
-        hashed = generate_passwd_hash("")
-        assert verify_passwd("", hashed) is True
+        hashed = generate_passwd_hash(TEST_HASH_EMPTY)
+        assert verify_passwd(TEST_HASH_EMPTY, hashed) is True
 
     def test_two_hashes_of_same_password_differ(self):
         # bcrypt uses a random salt each time
-        h1 = generate_passwd_hash("same")
-        h2 = generate_passwd_hash("same")
+        h1 = generate_passwd_hash(TEST_HASH_SAME)
+        h2 = generate_passwd_hash(TEST_HASH_SAME)
         assert h1 != h2
 
 

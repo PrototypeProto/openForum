@@ -18,6 +18,7 @@ Covers:
 
 from datetime import date
 
+import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.auth.schemas import LoginResultEnum
@@ -33,16 +34,21 @@ from tests.constants import (
     TEST_PASSWORD_STUB,
 )
 
+
 # ── username_exists ────────────────────────────────────────────────────────────
 
 
 class TestUsernameExists:
-    async def test_returns_valid_for_verified_user(self, auth_svc, session: AsyncSession):
+    async def test_returns_valid_for_verified_user(
+        self, auth_svc, session: AsyncSession
+    ):
         await make_user(session, username="verifieduser")
         result = await auth_svc.username_exists("verifieduser", session)
         assert result == LoginResultEnum.VALID
 
-    async def test_returns_pending_for_pending_user(self, auth_svc, session: AsyncSession):
+    async def test_returns_pending_for_pending_user(
+        self, auth_svc, session: AsyncSession
+    ):
         uid = UserID()
         session.add(uid)
         await session.commit()
@@ -70,7 +76,9 @@ class TestUsernameExists:
 
 
 class TestEmailExists:
-    async def test_returns_valid_for_verified_email(self, auth_svc, session: AsyncSession):
+    async def test_returns_valid_for_verified_email(
+        self, auth_svc, session: AsyncSession
+    ):
         await make_user(session, username="emailverified")
         # make_user doesn't set email, so insert one directly
         user = await auth_svc.get_user_with_username("emailverified", session)
@@ -81,7 +89,9 @@ class TestEmailExists:
         result = await auth_svc.email_exists("verified@example.com", session)
         assert result == LoginResultEnum.VALID
 
-    async def test_returns_pending_for_pending_email(self, auth_svc, session: AsyncSession):
+    async def test_returns_pending_for_pending_email(
+        self, auth_svc, session: AsyncSession
+    ):
         uid = UserID()
         session.add(uid)
         await session.commit()
@@ -119,7 +129,9 @@ class TestUserLookups:
         user = await auth_svc.get_user_with_username("doesnotexist", session)
         assert user is None
 
-    async def test_get_pending_user_with_username_hit(self, auth_svc, session: AsyncSession):
+    async def test_get_pending_user_with_username_hit(
+        self, auth_svc, session: AsyncSession
+    ):
         uid = UserID()
         session.add(uid)
         await session.commit()
@@ -139,7 +151,9 @@ class TestUserLookups:
         assert found is not None
         assert found.username == "findpending"
 
-    async def test_get_pending_user_with_username_miss(self, auth_svc, session: AsyncSession):
+    async def test_get_pending_user_with_username_miss(
+        self, auth_svc, session: AsyncSession
+    ):
         found = await auth_svc.get_pending_user_with_username("nopending", session)
         assert found is None
 
@@ -163,7 +177,9 @@ class TestRegisterUser:
         found = await auth_svc.get_pending_user_with_username("newpending", session)
         assert found is not None
 
-    async def test_password_is_hashed_not_plaintext(self, auth_svc, session: AsyncSession):
+    async def test_password_is_hashed_not_plaintext(
+        self, auth_svc, session: AsyncSession
+    ):
         payload = RegisterUserModel(
             username="hashcheck",
             password=TEST_PASSWORD_ALT,
@@ -220,7 +236,9 @@ class TestGenerateTokens:
         owner = await get_refresh_token_owner(jti)
         assert owner == "jtistore"
 
-    async def test_token_payload_contains_user_data(self, auth_svc, session: AsyncSession):
+    async def test_token_payload_contains_user_data(
+        self, auth_svc, session: AsyncSession
+    ):
         user = await make_user(session, username="payloadcheck")
         access, _ = await auth_svc.generate_tokens(user)
         data = decode_token(access)
@@ -246,7 +264,9 @@ class TestIsValidUserToken:
         token_details = {"user": {"username": "cachedhit", "user_id": str(user.user_id)}}
         assert await auth_svc.is_valid_user_token(token_details, session) is True
 
-    async def test_db_fallback_returns_true_and_backfills(self, auth_svc, session: AsyncSession):
+    async def test_db_fallback_returns_true_and_backfills(
+        self, auth_svc, session: AsyncSession
+    ):
         """Redis miss → DB hit → backfill cache → return True."""
         from src.db.redis_client import get_user
 
@@ -265,11 +285,15 @@ class TestIsValidUserToken:
         token_details = {"user": {"username": "phantom", "user_id": "some-id"}}
         assert await auth_svc.is_valid_user_token(token_details, session) is False
 
-    async def test_none_token_details_returns_false(self, auth_svc, session: AsyncSession):
+    async def test_none_token_details_returns_false(
+        self, auth_svc, session: AsyncSession
+    ):
         assert await auth_svc.is_valid_user_token(None, session) is False
 
     async def test_empty_dict_returns_false(self, auth_svc, session: AsyncSession):
         assert await auth_svc.is_valid_user_token({}, session) is False
 
-    async def test_missing_username_key_returns_false(self, auth_svc, session: AsyncSession):
+    async def test_missing_username_key_returns_false(
+        self, auth_svc, session: AsyncSession
+    ):
         assert await auth_svc.is_valid_user_token({"user": {}}, session) is False

@@ -96,3 +96,51 @@ TEST_REPLY_BODY_CREATE = "Great thread!"  # create_reply happy-path body
 TEST_TRIGGER_TITLE_1 = "T1"
 TEST_TRIGGER_TITLE_2 = "T2"
 TEST_TRIGGER_REPLY_BODY = "reply 1"
+
+# ---------------------------------------------------------------------------
+# Pending user request field
+#
+# The free-text "request" field a pending user fills in at signup.
+# Two variants so tests for admin_service and admin_routes each have a
+# distinct value if needed, while both being readable at a glance.
+# ---------------------------------------------------------------------------
+
+TEST_PENDING_REQUEST = "Let me in please."
+
+# ---------------------------------------------------------------------------
+# bcrypt test vectors
+#
+# Used in test_utils.py to test the hashing implementation itself.
+# "" tests that an empty password is valid bcrypt input.
+# TEST_HASH_SAME tests that two hashes of identical input differ (salt randomness).
+# Named here so bandit S106 is silenced in one place.
+# ---------------------------------------------------------------------------
+
+TEST_HASH_EMPTY = ""  # noqa: S105
+TEST_HASH_SAME = "same"  # noqa: S105
+
+# ---------------------------------------------------------------------------
+# Factory default values
+#
+# Used as default argument values in make_thread() / make_reply() test
+# factory helpers. Defined here so the helper signatures stay clean and
+# changes flow from one place.
+# ---------------------------------------------------------------------------
+
+TEST_FACTORY_THREAD_TITLE = "Test Thread"
+TEST_FACTORY_THREAD_BODY = "Thread body."
+TEST_FACTORY_REPLY_BODY = "Reply body."
+
+# ---------------------------------------------------------------------------
+# Thread listing test titles
+#
+# Used in test_forum_routes.py tests that assert specific titles appear
+# in (or are absent from) paginated thread listing responses.
+# ---------------------------------------------------------------------------
+
+TEST_TITLE_ALPHA = "Alpha Thread"
+TEST_TITLE_BETA = "Beta Thread"
+TEST_TITLE_VISIBLE = "Visible"
+TEST_TITLE_DELETED = "Gone"
+TEST_TITLE_NORMAL = "Normal"
+TEST_TITLE_PINNED = "Pinned"

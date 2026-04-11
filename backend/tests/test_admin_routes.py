@@ -22,7 +22,7 @@ from src.db.enums import MemberRoleEnum
 from src.db.models import PendingUser, UserID
 from src.db.redis_client import add_registered_user, get_user
 from tests.conftest import auth_cookies, make_access_token, make_user
-from tests.constants import TEST_PASSWORD_STUB
+from tests.constants import TEST_PASSWORD_STUB, TEST_PENDING_REQUEST
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ async def make_pending_user(
         password_hash=generate_passwd_hash(password),
         nickname=None,
         join_date=date.today(),
-        request="Please let me in",
+        request=TEST_PENDING_REQUEST,
     )
     session.add(pending)
     await session.commit()

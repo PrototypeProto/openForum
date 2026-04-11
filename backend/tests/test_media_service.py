@@ -13,7 +13,7 @@ Split into two tiers:
     Covers every recognised magic-byte sequence plus several edge cases:
       JPEG  (FF D8 FF)
       PNG   (89 50 4E 47 0D 0A 1A 0A)
-      MP4   (ISO-BMFF: bytes 4-8 == b"ftyp")
+      MP4   (ISO-BMFF: bytes 4–8 == b"ftyp")
       Unknown / too-short / garbage → None
 
   MediaService.list_accessible_media tests (filesystem, no DB/Redis)

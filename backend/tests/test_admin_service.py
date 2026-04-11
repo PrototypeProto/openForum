@@ -18,16 +18,14 @@ Covers:
 
 from datetime import date
 
-import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from src.auth.utils import generate_passwd_hash
 from src.db.enums import MemberRoleEnum
 from src.db.models import PendingUser, UserID
 from src.db.redis_client import add_registered_user, get_user
-from src.auth.utils import generate_passwd_hash
 from tests.conftest import make_user
-from tests.constants import TEST_PASSWORD_STUB
-
+from tests.constants import TEST_PASSWORD_STUB, TEST_PENDING_REQUEST
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -47,7 +45,7 @@ async def make_pending(
         password_hash=generate_passwd_hash(password),
         nickname=None,
         join_date=date.today(),
-        request="let me in",
+        request=TEST_PENDING_REQUEST,
     )
     session.add(pending)
     await session.commit()
@@ -59,34 +57,26 @@ async def make_pending(
 
 
 class TestIsUserAdmin:
-    async def test_redis_hit_admin_returns_true(
-        self, admin_svc, session: AsyncSession
-    ):
+    async def test_redis_hit_admin_returns_true(self, admin_svc, session: AsyncSession):
         user = await make_user(session, username="redisadmin", role=MemberRoleEnum.ADMIN)
         await add_registered_user(user.username, MemberRoleEnum.ADMIN)
 
         assert await admin_svc.is_user_admin("redisadmin", session) is True
 
-    async def test_redis_hit_non_admin_returns_false(
-        self, admin_svc, session: AsyncSession
-    ):
+    async def test_redis_hit_non_admin_returns_false(self, admin_svc, session: AsyncSession):
         user = await make_user(session, username="redisuser", role=MemberRoleEnum.USER)
         await add_registered_user(user.username, MemberRoleEnum.USER)
 
         assert await admin_svc.is_user_admin("redisuser", session) is False
 
-    async def test_db_fallback_admin_returns_true(
-        self, admin_svc, session: AsyncSession
-    ):
+    async def test_db_fallback_admin_returns_true(self, admin_svc, session: AsyncSession):
         """Redis miss → DB hit for admin."""
         await make_user(session, username="dbadmin", role=MemberRoleEnum.ADMIN)
         # Deliberately skip Redis prime
 
         assert await admin_svc.is_user_admin("dbadmin", session) is True
 
-    async def test_db_fallback_backfills_redis(
-        self, admin_svc, session: AsyncSession
-    ):
+    async def test_db_fallback_backfills_redis(self, admin_svc, session: AsyncSession):
         await make_user(session, username="backfilladmin", role=MemberRoleEnum.ADMIN)
 
         await admin_svc.is_user_admin("backfilladmin", session)
@@ -222,14 +212,10 @@ class TestApprovePendingUser:
         await make_pending(session, username="clearpending")
         await admin_svc.approve_pending_user("clearpending", session)
 
-        still_pending = await auth_service.get_pending_user_with_username(
-            "clearpending", session
-        )
+        still_pending = await auth_service.get_pending_user_with_username("clearpending", session)
         assert still_pending is None
 
-    async def test_unknown_pending_user_returns_none(
-        self, admin_svc, session: AsyncSession
-    ):
+    async def test_unknown_pending_user_returns_none(self, admin_svc, session: AsyncSession):
         result = await admin_svc.approve_pending_user("doesnotexist", session)
         assert result is None
 
@@ -258,13 +244,9 @@ class TestRejectPendingUser:
         await make_pending(session, username="rejectclean")
         await admin_svc.reject_pending_user("rejectclean", session)
 
-        still_pending = await auth_service.get_pending_user_with_username(
-            "rejectclean", session
-        )
+        still_pending = await auth_service.get_pending_user_with_username("rejectclean", session)
         assert still_pending is None
 
-    async def test_unknown_pending_user_returns_none(
-        self, admin_svc, session: AsyncSession
-    ):
+    async def test_unknown_pending_user_returns_none(self, admin_svc, session: AsyncSession):
         result = await admin_svc.reject_pending_user("nobody", session)
         assert result is None
