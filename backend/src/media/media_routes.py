@@ -20,10 +20,9 @@ from src.exceptions import (
     UnsupportedFileTypeError,
 )
 
-from .service import MediaService
+from .service import media_service
 
 router = APIRouter(prefix="/media", tags=["media"])
-media_service = MediaService()
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 MEDIA_DIR = Path(Config.MEDIA_DIR)

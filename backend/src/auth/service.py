@@ -157,3 +157,10 @@ class AuthService:
         return (
             await session.exec(select(PendingUser).where(PendingUser.email == email))
         ).first()
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton — import this instead of instantiating AuthService()
+# ---------------------------------------------------------------------------
+
+auth_service = AuthService()

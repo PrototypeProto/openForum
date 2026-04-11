@@ -26,3 +26,10 @@ class MediaService:
             page_size=limit,
             pages=pages,
         )
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton — import this instead of instantiating MediaService()
+# ---------------------------------------------------------------------------
+
+media_service = MediaService()

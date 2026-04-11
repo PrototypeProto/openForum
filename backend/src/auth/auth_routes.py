@@ -32,14 +32,13 @@ from .dependencies import (
     require_user,
 )
 from .schemas import LoginResultEnum
-from .service import AuthService
+from .service import auth_service
 from .utils import seconds_until_expiry, verify_passwd
 
 logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-auth_service = AuthService()
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 

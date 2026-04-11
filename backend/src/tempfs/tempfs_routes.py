@@ -12,13 +12,13 @@ from fastapi import APIRouter, Depends, File, Form, Header, Query, UploadFile, s
 from fastapi.responses import StreamingResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.admin.service import AdminService
+from src.admin.service import admin_service
 from src.auth.dependencies import (
     AccessTokenBearer,
     require_user,
     require_vip,
 )
-from src.auth.service import AuthService
+from src.auth.service import auth_service
 from src.db.enums import DownloadPermission
 from src.db.main import get_session
 from src.db.schemas import (
@@ -34,12 +34,9 @@ from src.db.schemas import (
 )
 from src.exceptions import NotFoundError
 from src.rate_limit import rate_limit
-from src.tempfs.service import TempFSService
+from src.tempfs.service import tempfs_service as service
 
 router = APIRouter(prefix="/tempfs", tags=["tempfs"])
-service = TempFSService()
-auth_service = AuthService()
-admin_service = AdminService()
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 # Optional auth — used on the download endpoint so public files work unauthenticated

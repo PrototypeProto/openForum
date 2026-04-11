@@ -33,8 +33,9 @@ import logging
 
 from fastapi import Depends, Request, Response
 
-from src.db.redis_client import check_rate_limit, get_rate_limit_ttl
 from src.auth.utils import decode_token
+from src.config import Config
+from src.db.redis_client import check_rate_limit, get_rate_limit_ttl
 from src.exceptions import RateLimitError
 
 logger = logging.getLogger(__name__)
@@ -88,7 +89,14 @@ def rate_limit(route_key: str, limit: int, window: int):
         Depends(rate_limit("auth:login", limit=10, window=60))
         → 10 requests per 60 seconds per identifier
     """
+
     async def _check(request: Request, response: Response) -> None:
+        # Bypass entirely in testing (or when explicitly disabled via env var).
+        # This prevents flaky 429s when a test makes multiple calls to the
+        # same endpoint inside a single test function.
+        if Config.DISABLE_RATE_LIMIT:
+            return
+
         try:
             identifier = _get_identifier(request)
             count, remaining = await check_rate_limit(
@@ -115,8 +123,6 @@ def rate_limit(route_key: str, limit: int, window: int):
             except Exception:
                 retry_after = window
             response.headers["Retry-After"] = str(retry_after)
-            raise RateLimitError(
-                f"Rate limit exceeded. Try again in {retry_after} seconds."
-            )
+            raise RateLimitError(f"Rate limit exceeded. Try again in {retry_after} seconds.")
 
     return Depends(_check)

@@ -38,9 +38,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def life_span(app: FastAPI):
     logger.info("Server is starting...")
-    start_scheduler()
+    if not Config.is_testing:
+        start_scheduler()
     yield
-    stop_scheduler()
+    if not Config.is_testing:
+        stop_scheduler()
     logger.info("Server has been stopped.")
 
 

@@ -10,10 +10,9 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from src.db.main import get_session_context
 from src.tempfs.logger import _now, _write
-from src.tempfs.service import TempFSService
+from src.tempfs.service import tempfs_service as _service
 
 _scheduler = AsyncIOScheduler()
-_service = TempFSService()
 
 
 async def _run_cleanup() -> None:

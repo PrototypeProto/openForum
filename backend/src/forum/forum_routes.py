@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.admin.service import AdminService
+from src.admin.service import admin_service
 from src.auth.dependencies import require_user
 from src.db.main import get_session
 from src.db.schemas import (
@@ -30,11 +30,9 @@ from src.exceptions import (
 )
 from src.rate_limit import rate_limit
 
-from .service import ForumService
+from .service import forum_service as service
 
 router = APIRouter(prefix="/forum", tags=["forum"])
-service = ForumService()
-admin_service = AdminService()
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 

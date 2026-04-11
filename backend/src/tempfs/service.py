@@ -501,3 +501,10 @@ class TempFSService:
             expires_at=record.expires_at,
             requires_password=record.download_permission == DownloadPermission.PASSWORD,
         )
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton — import this instead of instantiating TempFSService()
+# ---------------------------------------------------------------------------
+
+tempfs_service = TempFSService()

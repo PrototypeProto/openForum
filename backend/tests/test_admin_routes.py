@@ -22,6 +22,7 @@ from src.db.enums import MemberRoleEnum
 from src.db.models import PendingUser, UserID
 from src.db.redis_client import add_registered_user, get_user
 from tests.conftest import auth_cookies, make_access_token, make_user
+from tests.constants import TEST_PASSWORD_STUB
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,7 +31,7 @@ async def make_pending_user(
     session: AsyncSession,
     *,
     username: str = None,
-    password: str = "pass",  # noqa: S107
+    password: str = TEST_PASSWORD_STUB,
 ) -> PendingUser:
     """Insert a PendingUser row directly, bypassing the signup endpoint."""
     from uuid import uuid4

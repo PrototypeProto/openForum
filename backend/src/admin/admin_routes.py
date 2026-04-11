@@ -4,7 +4,6 @@ from fastapi import APIRouter, Body, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.auth.dependencies import require_admin
-from src.auth.service import AuthService
 from src.db.enums import MemberRoleEnum
 from src.db.main import get_session
 from src.db.schemas import PendingUserRead, RejectedUserRead, UserRead, UserStats
@@ -14,11 +13,9 @@ from src.exceptions import (
     NotFoundError,
 )
 
-from .service import AdminService
+from .service import admin_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-admin_service = AdminService()
-auth_service = AuthService()
 SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 

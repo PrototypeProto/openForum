@@ -3,7 +3,7 @@ from datetime import date
 from sqlmodel import delete, desc, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.auth.service import AuthService
+from src.auth.service import auth_service
 from src.db.enums import MemberRoleEnum
 from src.db.models import (
     PendingUser,
@@ -12,8 +12,6 @@ from src.db.models import (
 )
 from src.db.redis_client import add_registered_user, get_user
 from src.db.schemas import PendingUserRead, RejectedUserRead, UserRead, UserStats
-
-auth_service = AuthService()
 
 
 class AdminService:
@@ -207,3 +205,10 @@ class AdminService:
     #         return False
     #         # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid permission to access requested resources")
     #     return True
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton — import this instead of instantiating AdminService()
+# ---------------------------------------------------------------------------
+
+admin_service = AdminService()

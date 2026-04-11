@@ -6,7 +6,6 @@ from sqlalchemy.orm import aliased
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from src.auth.service import AuthService
 from src.db.models import Reply, ReplyVote, Thread, ThreadVote, Topic, TopicGroup, User
 from src.db.schemas import (
     PaginatedReplies,
@@ -23,8 +22,6 @@ from src.db.schemas import (
     TopicRead,
     VoteResult,
 )
-
-auth_service = AuthService()
 
 
 class ForumService:
@@ -605,3 +602,10 @@ class ForumService:
             )
         ).first()
         return vote.is_upvote if vote else None
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton — import this instead of instantiating ForumService()
+# ---------------------------------------------------------------------------
+
+forum_service = ForumService()

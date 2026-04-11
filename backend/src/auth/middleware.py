@@ -35,7 +35,7 @@ from starlette.types import ASGIApp
 
 from src.config import Config
 from src.auth.utils import decode_token, seconds_until_expiry
-from src.auth.service import AuthService
+from src.auth.service import auth_service as _auth_service
 from src.db.redis_client import (
     token_in_blocklist,
     get_refresh_token_owner,
@@ -58,7 +58,6 @@ AUTH_BYPASS_PATHS = {
     "/auth/refresh_token",
 }
 
-_auth_service = AuthService()
 
 
 class TokenRefreshMiddleware(BaseHTTPMiddleware):

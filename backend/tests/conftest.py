@@ -47,9 +47,12 @@ from sqlalchemy.ext.asyncio import (  # noqa: E402 # noqa: E402
 )
 from sqlmodel.ext.asyncio.session import AsyncSession  # noqa: E402
 
+from src.admin.service import admin_service  # noqa: E402
+
 # ── App imports (after env is loaded) ────────────────────────────────────────
 from src.app import app  # noqa: E402
 from src.auth.schemas import AccessTokenUserData  # noqa: E402
+from src.auth.service import auth_service  # noqa: E402
 from src.auth.utils import (  # noqa: E402
     REFRESH_TOKEN_EXPIRY_SECONDS,
     create_access_token,
@@ -61,6 +64,10 @@ from src.db.main import get_session  # noqa: E402
 from src.db.models import User, UserID  # noqa: E402
 from src.db.redis_client import _client as redis_client  # noqa: E402 # noqa: E402
 from src.db.redis_client import store_refresh_token  # noqa: E402
+from src.forum.service import forum_service  # noqa: E402
+from src.media.service import media_service  # noqa: E402
+from src.tempfs.service import tempfs_service  # noqa: E402
+from tests.constants import TEST_PASSWORD  # noqa: E402
 
 # ── Test DB URL ───────────────────────────────────────────────────────────────
 TEST_DB_URL = os.environ["TEST_DB_URL"]
@@ -162,7 +169,7 @@ async def make_user(
     *,
     username: str = None,
     role: MemberRoleEnum = MemberRoleEnum.USER,
-    password: str = "testpassword",  # noqa: S107
+    password: str = TEST_PASSWORD,
 ) -> User:
     """
     Insert a verified User directly into the DB, bypassing the pending flow.
@@ -299,3 +306,50 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "triggers" in item.keywords:
                 item.add_marker(skip_triggers)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Service singleton fixtures
+#
+# Each fixture yields the module-level singleton wired to nothing extra —
+# the caller is responsible for passing the `session` fixture when invoking
+# service methods directly (e.g. for service-layer unit tests that want to
+# bypass HTTP entirely).
+#
+# Usage example:
+#
+#   async def test_register(auth_svc, session):
+#       user = await auth_svc.register_user(payload, session)
+#       assert user.username == payload.username
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture
+def auth_svc():
+    """Module-level AuthService singleton."""
+    return auth_service
+
+
+@pytest.fixture
+def admin_svc():
+    """Module-level AdminService singleton."""
+    return admin_service
+
+
+@pytest.fixture
+def forum_svc():
+    """Module-level ForumService singleton."""
+    return forum_service
+
+
+@pytest.fixture
+def media_svc():
+    """Module-level MediaService singleton."""
+    return media_service
+
+
+@pytest.fixture
+def tempfs_svc():
+    """Module-level TempFSService singleton."""
+    return tempfs_service
