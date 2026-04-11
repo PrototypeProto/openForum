@@ -30,11 +30,11 @@ from src.db.enums import DownloadPermission, MemberRoleEnum
 # ── Validation constants ──────────────────────────────────────────────────────
 USERNAME_PATTERN = r"^[A-Za-z0-9_-]{2,32}$"
 PASSWORD_MIN_LEN = 12
-PASSWORD_MAX_LEN = 64  # bcrypt cap is 72 bytes; this is a safe ceiling
+PASSWORD_MAX_LEN = 128  # bcrypt cap is 72 bytes; this is a safe ceiling
 NICKNAME_MAX_LEN = 64
 REQUEST_MAX_LEN = 1_000
-THREAD_BODY_MAX_LEN = 10_000
-REPLY_BODY_MAX_LEN = 2_000
+THREAD_BODY_MAX_LEN = 20_000
+REPLY_BODY_MAX_LEN = 10_000
 
 # ── Tempfs constants ──────────────────────────────────────────────────────────
 # Kept here because TempFileCreate references them as Field defaults.

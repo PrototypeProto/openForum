@@ -5,6 +5,7 @@ Compression uses zstd; we only keep the compressed version if it is smaller.
 """
 
 import contextlib
+import errno
 import logging
 import re
 import unicodedata
@@ -114,6 +115,40 @@ def _zstd_compress_file(src: Path, dst: Path, level: int = 3) -> None:
     cctx = zstd.ZstdCompressor(level=level)
     with open(src, "rb") as fin, open(dst, "wb") as fout:
         cctx.copy_stream(fin, fout)
+
+
+def _sniff_mime_type(head: bytes) -> str:
+    """
+    Identify MIME type from the leading bytes of a file.
+
+    Never trusts the client-supplied Content-Type header — that value is
+    attacker-controlled. This function is the sole authority on what type
+    a file is considered to be for storage and serving.
+
+    Returns a concrete MIME type string, defaulting to
+    "application/octet-stream" for anything unrecognised so the browser
+    treats it as a binary download rather than attempting to render it.
+    """
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    # ISO-BMFF (mp4): bytes 4-8 are the box type "ftyp"
+    if len(head) >= 12 and head[4:8] == b"ftyp":
+        return "video/mp4"
+    # ZIP-based formats (docx, xlsx, pptx, jar, apk, etc.)
+    if head.startswith(b"PK\x03\x04"):
+        return "application/zip"
+    # PDF
+    if head.startswith(b"%PDF"):
+        return "application/pdf"
+    # GIF
+    if head.startswith(b"GIF87a") or head.startswith(b"GIF89a"):
+        return "image/gif"
+    # WebP: "RIFF....WEBP"
+    if len(head) >= 12 and head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    return "application/octet-stream"
 
 
 class TempFSService:
@@ -267,7 +302,7 @@ class TempFSService:
                 file_id=file_id,
                 uploader_id=uploader_id,
                 original_filename=safe_filename,
-                mime_type=file.content_type or "application/octet-stream",
+                mime_type=_sniff_mime_type(raw_path.read_bytes()[:512]),
                 original_size=file_size,
                 stored_size=stored_size,
                 is_compressed=is_compressed,
@@ -450,18 +485,25 @@ class TempFSService:
         """
         disk_path = _file_path(record.file_id)
         try:
-            disk_path.unlink(missing_ok=True)
+            disk_path.unlink(missing_ok=False)
             log_cleanup_delete_ok(record.file_id)
         except OSError as e:
-            # Real filesystem error (permissions, EBUSY, etc.) — log loudly
-            # but still archive the metadata so the DB stays consistent.
-            # The orphan bytes on disk are preferable to a stale temp_file row.
-            logger.error(
-                "disk delete failed for %s: %s — archiving metadata anyway",
-                record.file_id,
-                e,
-            )
-            log_cleanup_delete_fail(record.file_id, e)
+            if e.errno == errno.ENOENT:
+                # File already gone (e.g. manual cleanup, prior crash mid-delete).
+                # This is safe to swallow — the goal was removal and it is removed.
+                log_cleanup_delete_ok(record.file_id)
+            else:
+                # Real filesystem error (EPERM, EBUSY, EROFS, etc.).
+                # Log loudly — bytes are orphaned on disk — but still archive
+                # the DB row so the temp_file table stays consistent.
+                # An operator can recover by cleaning up the orphan manually.
+                logger.error(
+                    "disk delete failed for %s (errno %d: %s) — archiving metadata anyway",
+                    record.file_id,
+                    e.errno,
+                    e.strerror,
+                )
+                log_cleanup_delete_fail(record.file_id, e)
 
         expired = ExpiredFile(
             file_id=record.file_id,

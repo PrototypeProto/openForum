@@ -380,6 +380,10 @@ class ThreadVote(SQLModel, table=True):
     """
     Tracks which user voted on which thread and whether it was up/downvoted.
     Composite PK prevents a user voting twice on the same thread.
+
+    NOTE: dropped created_at
+    TODO: trigger updating thread table
+    NOTE: if user revokes their vote (unlikes their like, but not a dislike), delete entry, else update
     """
 
     __tablename__ = "thread_vote"
@@ -436,7 +440,9 @@ class Reply(SQLModel, table=True):
     )
     thread_id: UUID = Field(foreign_key="thread.thread_id", nullable=False)
     author_id: UUID = Field(foreign_key="user_id.id", nullable=False, exclude=True)
-    parent_reply_id: UUID | None = Field(foreign_key="reply.reply_id", nullable=True, default=None)
+    parent_reply_id: UUID | None = Field(
+        foreign_key="reply.reply_id", nullable=True, default=None
+    )  # self-referential — None means top-level reply
     body: str = Field(sa_column=Column(postgres.TEXT, nullable=False))
     created_at: datetime | None = Field(
         sa_column=Column(
@@ -465,6 +471,9 @@ class ReplyVote(SQLModel, table=True):
     """
     Tracks which user voted on which reply and whether it was up or down.
     Composite PK prevents a user voting twice on the same reply.
+
+    TODO: trigger affects reply vote count
+    NOTE: see thread_vote for similar behavior
     """
 
     __tablename__ = "reply_vote"

@@ -36,9 +36,7 @@ from tests.constants import (
 class TestLogin:
     async def test_login_success_sets_cookies(self, client: AsyncClient, session: AsyncSession):
         await make_user(session, username="loginuser", password=TEST_PASSWORD)
-        r = await client.post(
-            "/auth/login", json={"username": "loginuser", "password": TEST_PASSWORD}
-        )
+        r = await client.post("/auth/login", json={"username": "loginuser", "password": TEST_PASSWORD})
 
         assert r.status_code == 200
         assert "access_token" in r.cookies
@@ -53,9 +51,7 @@ class TestLogin:
             role=MemberRoleEnum.VIP,
             password=TEST_PASSWORD,
         )
-        r = await client.post(
-            "/auth/login", json={"username": "roleuser", "password": TEST_PASSWORD}
-        )
+        r = await client.post("/auth/login", json={"username": "roleuser", "password": TEST_PASSWORD})
 
         assert r.status_code == 200
         body = r.json()
@@ -68,24 +64,18 @@ class TestLogin:
         self, client: AsyncClient, session: AsyncSession
     ):
         await make_user(session, username="wrongpass", password=TEST_PASSWORD)
-        r = await client.post(
-            "/auth/login", json={"username": "wrongpass", "password": TEST_PASSWORD_WRONG}
-        )
+        r = await client.post("/auth/login", json={"username": "wrongpass", "password": TEST_PASSWORD_WRONG})
         assert r.status_code == 403
 
     async def test_login_unknown_user_returns_403(self, client: AsyncClient):
-        r = await client.post(
-            "/auth/login", json={"username": "nobody", "password": TEST_PASSWORD_WRONG}
-        )
+        r = await client.post("/auth/login", json={"username": "nobody", "password": TEST_PASSWORD_WRONG})
         assert r.status_code == 403
 
     async def test_login_stores_refresh_jti_in_redis(
         self, client: AsyncClient, session: AsyncSession
     ):
         await make_user(session, username="jtiuser", password=TEST_PASSWORD)
-        r = await client.post(
-            "/auth/login", json={"username": "jtiuser", "password": TEST_PASSWORD}
-        )
+        r = await client.post("/auth/login", json={"username": "jtiuser", "password": TEST_PASSWORD})
 
         refresh_token = r.cookies.get("refresh_token")
         assert refresh_token is not None

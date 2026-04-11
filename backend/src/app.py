@@ -79,10 +79,10 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[Config.ALLOWED_ORIGINS],
+    allow_origins=Config.allowed_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=Config.cors_allow_methods_list,
+    allow_headers=Config.cors_allow_headers_list,
 )
 app.add_middleware(TokenRefreshMiddleware)
 app.include_router(router=root_router)

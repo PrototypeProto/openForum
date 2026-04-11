@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.admin.service import admin_service
+from src.auth.csrf import require_csrf
 from src.auth.dependencies import (
     AccessTokenBearer,
     require_user,
@@ -73,6 +74,7 @@ async def upload_file(
     compress: bool = Form(default=True),
     token_details: dict = require_vip,
     _rl: None = rate_limit("tempfs:upload", limit=10, window=60),
+    _csrf: None = require_csrf,
 ):
     """
     POST /tempfs/upload
@@ -235,6 +237,7 @@ async def delete_file(
     file_id: UUID,
     session: SessionDependency,
     token_details: dict = require_user,
+    _csrf: None = require_csrf,
 ):
     """
     DELETE /tempfs/files/{file_id}

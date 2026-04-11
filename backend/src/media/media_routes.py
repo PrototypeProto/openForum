@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from src.auth.csrf import require_csrf
 from src.auth.dependencies import require_admin, require_user
 from src.config import Config
 from src.db.main import get_session
@@ -89,6 +90,7 @@ async def upload_file(
     session: SessionDependency,
     file: UploadFile = File(...),
     token_details: dict = require_admin,
+    _csrf: None = require_csrf,
 ):
     """
     Admin-only media upload.
@@ -148,6 +150,7 @@ async def delete_file(
     filename: str,
     session: SessionDependency,
     token_details: dict = require_admin,
+    _csrf: None = require_csrf,
 ):
     file_path = (MEDIA_DIR / filename).resolve()
 

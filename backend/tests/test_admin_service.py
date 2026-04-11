@@ -107,7 +107,7 @@ class TestIsVerifiedUser:
         assert await admin_svc.is_verified_user("dbverified", session) is True
 
     async def test_db_fallback_backfills_redis(self, admin_svc, session: AsyncSession):
-        user = await make_user(session, username="backfillverified", role=MemberRoleEnum.VIP)
+        await make_user(session, username="backfillverified", role=MemberRoleEnum.VIP)
 
         await admin_svc.is_verified_user("backfillverified", session)
 

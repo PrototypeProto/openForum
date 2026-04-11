@@ -26,6 +26,7 @@ from src.exceptions import (
 )
 from src.rate_limit import rate_limit
 
+from .csrf import delete_csrf_cookie, generate_csrf_token, set_csrf_cookie
 from .dependencies import (
     RefreshTokenBearer,
     access_token_bearer,
@@ -75,6 +76,7 @@ async def login_user(
 ):
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
+    response.delete_cookie("csrf_token")
 
     user = await auth_service.get_user_with_username(login_data.username, session)
     if user is None or not verify_passwd(login_data.password, user.password_hash):
@@ -94,15 +96,18 @@ async def login_user(
         value=access_token,
         httponly=True,
         secure=Config.cookie_secure,
-        samesite="lax",
+        samesite=Config.cookie_samesite,
     )
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
         secure=Config.cookie_secure,
-        samesite="lax",
+        samesite=Config.cookie_samesite,
     )
+
+    csrf_token = generate_csrf_token()
+    set_csrf_cookie(response, csrf_token)
 
     return {
         "message": "login successful",
@@ -134,6 +139,7 @@ async def rotate_refresh_token(
         await revoke_all_user_refresh_tokens(username)
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
+        response.delete_cookie("csrf_token")
         raise RefreshTokenReuseError(
             "Refresh token reuse detected. All sessions revoked. Please log in again."
         )
@@ -157,15 +163,18 @@ async def rotate_refresh_token(
         value=access_token,
         httponly=True,
         secure=Config.cookie_secure,
-        samesite="lax",
+        samesite=Config.cookie_samesite,
     )
     response.set_cookie(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
         secure=Config.cookie_secure,
-        samesite="lax",
+        samesite=Config.cookie_samesite,
     )
+
+    csrf_token = generate_csrf_token()
+    set_csrf_cookie(response, csrf_token)
 
     return {"message": "tokens rotated"}
 
@@ -202,5 +211,6 @@ async def revoke_token(
 
     response.delete_cookie("access_token")
     response.delete_cookie("refresh_token")
+    delete_csrf_cookie(response)
 
     return {"message": "Logged out successfully"}

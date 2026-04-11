@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, Depends, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.admin.service import admin_service
+from src.auth.csrf import require_csrf
 from src.auth.dependencies import require_user
 from src.db.main import get_session
 from src.db.schemas import (
@@ -89,6 +90,7 @@ async def create_thread(
     session: SessionDependency,
     token_details: dict = require_user,
     _rl: None = rate_limit("forum:thread:create", limit=10, window=60),
+    _csrf: None = require_csrf,
 ):
     topic = await service.get_topic(topic_id, session)
     if not topic:
@@ -106,6 +108,7 @@ async def update_thread(
     payload: ThreadUpdate,
     session: SessionDependency,
     token_details: dict = require_user,
+    _csrf: None = require_csrf,
 ):
     thread = await service.get_thread_orm(thread_id, session)
     if not thread or thread.is_deleted:
@@ -130,6 +133,7 @@ async def delete_thread(
     thread_id: UUID,
     session: SessionDependency,
     token_details: dict = require_user,
+    _csrf: None = require_csrf,
 ):
     thread = await service.get_thread_orm(thread_id, session)
     if not thread or thread.is_deleted:
@@ -152,6 +156,7 @@ async def vote_thread(
     session: SessionDependency,
     token_details: dict = require_user,
     _rl: None = rate_limit("forum:vote", limit=30, window=60),
+    _csrf: None = require_csrf,
 ):
     thread = await service.get_thread_orm(thread_id, session)
     if not thread or thread.is_deleted:
@@ -199,6 +204,7 @@ async def create_reply(
     session: SessionDependency,
     token_details: dict = require_user,
     _rl: None = rate_limit("forum:reply:create", limit=20, window=60),
+    _csrf: None = require_csrf,
 ):
     thread = await service.get_thread_orm(thread_id, session)
     if not thread or thread.is_deleted:
@@ -221,6 +227,7 @@ async def update_reply(
     payload: ReplyUpdate,
     session: SessionDependency,
     token_details: dict = require_user,
+    _csrf: None = require_csrf,
 ):
     reply = await service.get_reply_orm(reply_id, session)
     if not reply or reply.is_deleted:
@@ -237,6 +244,7 @@ async def delete_reply(
     reply_id: UUID,
     session: SessionDependency,
     token_details: dict = require_user,
+    _csrf: None = require_csrf,
 ):
     reply = await service.get_reply_orm(reply_id, session)
     if not reply or reply.is_deleted:
@@ -259,6 +267,7 @@ async def vote_reply(
     session: SessionDependency,
     token_details: dict = require_user,
     _rl: None = rate_limit("forum:vote", limit=30, window=60),
+    _csrf: None = require_csrf,
 ):
     reply = await service.get_reply_orm(reply_id, session)
     if not reply or reply.is_deleted:

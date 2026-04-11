@@ -27,12 +27,15 @@ Covers:
 
 from uuid import uuid4
 
+import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.db.models import Reply, Thread, Topic, TopicGroup
-from src.db.schemas import ReplyCreate, ThreadCreate
+from src.db.enums import MemberRoleEnum
+from src.db.schemas import ReplyCreate, ThreadCreate, ThreadUpdate, ReplyUpdate
 from tests.conftest import make_user
 from tests.constants import TEST_BODY, TEST_REPLY_BODY, TEST_TITLE
+
 
 # ── DB helpers ─────────────────────────────────────────────────────────────────
 
@@ -104,35 +107,51 @@ async def make_reply_orm(
 
 
 class TestVoteThread:
-    async def test_first_upvote_sets_user_vote_true(self, forum_svc, session: AsyncSession):
+    async def test_first_upvote_sets_user_vote_true(
+        self, forum_svc, session: AsyncSession
+    ):
         user = await make_user(session, username="tvup1")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
 
         result = await forum_svc.vote_thread(thread, user.user_id, True, session)
         assert result.user_vote is True
 
-    async def test_first_downvote_sets_user_vote_false(self, forum_svc, session: AsyncSession):
+    async def test_first_downvote_sets_user_vote_false(
+        self, forum_svc, session: AsyncSession
+    ):
         user = await make_user(session, username="tvdown1")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
 
         result = await forum_svc.vote_thread(thread, user.user_id, False, session)
         assert result.user_vote is False
 
-    async def test_same_upvote_twice_removes_vote(self, forum_svc, session: AsyncSession):
+    async def test_same_upvote_twice_removes_vote(
+        self, forum_svc, session: AsyncSession
+    ):
         user = await make_user(session, username="tvtoggle1")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
 
         await forum_svc.vote_thread(thread, user.user_id, True, session)
         result = await forum_svc.vote_thread(thread, user.user_id, True, session)
         assert result.user_vote is None
 
-    async def test_same_downvote_twice_removes_vote(self, forum_svc, session: AsyncSession):
+    async def test_same_downvote_twice_removes_vote(
+        self, forum_svc, session: AsyncSession
+    ):
         user = await make_user(session, username="tvtoggle2")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
 
         await forum_svc.vote_thread(thread, user.user_id, False, session)
         result = await forum_svc.vote_thread(thread, user.user_id, False, session)
@@ -141,7 +160,9 @@ class TestVoteThread:
     async def test_flip_from_up_to_down(self, forum_svc, session: AsyncSession):
         user = await make_user(session, username="tvflip1")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
 
         await forum_svc.vote_thread(thread, user.user_id, True, session)
         result = await forum_svc.vote_thread(thread, user.user_id, False, session)
@@ -150,17 +171,23 @@ class TestVoteThread:
     async def test_flip_from_down_to_up(self, forum_svc, session: AsyncSession):
         user = await make_user(session, username="tvflip2")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
 
         await forum_svc.vote_thread(thread, user.user_id, False, session)
         result = await forum_svc.vote_thread(thread, user.user_id, True, session)
         assert result.user_vote is True
 
-    async def test_two_users_vote_independently(self, forum_svc, session: AsyncSession):
+    async def test_two_users_vote_independently(
+        self, forum_svc, session: AsyncSession
+    ):
         u1 = await make_user(session, username="tvindep1")
         u2 = await make_user(session, username="tvindep2")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=u1.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=u1.user_id
+        )
 
         r1 = await forum_svc.vote_thread(thread, u1.user_id, True, session)
         r2 = await forum_svc.vote_thread(thread, u2.user_id, False, session)
@@ -176,8 +203,12 @@ class TestVoteReply:
     async def test_first_upvote(self, forum_svc, session: AsyncSession):
         user = await make_user(session, username="rvup1")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
-        reply = await make_reply_orm(session, thread_id=thread.thread_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
+        reply = await make_reply_orm(
+            session, thread_id=thread.thread_id, author_id=user.user_id
+        )
 
         result = await forum_svc.vote_reply(reply, user.user_id, True, session)
         assert result.user_vote is True
@@ -185,8 +216,12 @@ class TestVoteReply:
     async def test_toggle_removes_vote(self, forum_svc, session: AsyncSession):
         user = await make_user(session, username="rvtoggle")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
-        reply = await make_reply_orm(session, thread_id=thread.thread_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
+        reply = await make_reply_orm(
+            session, thread_id=thread.thread_id, author_id=user.user_id
+        )
 
         await forum_svc.vote_reply(reply, user.user_id, True, session)
         result = await forum_svc.vote_reply(reply, user.user_id, True, session)
@@ -195,8 +230,12 @@ class TestVoteReply:
     async def test_flip_up_to_down(self, forum_svc, session: AsyncSession):
         user = await make_user(session, username="rvflip")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
-        reply = await make_reply_orm(session, thread_id=thread.thread_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
+        reply = await make_reply_orm(
+            session, thread_id=thread.thread_id, author_id=user.user_id
+        )
 
         await forum_svc.vote_reply(reply, user.user_id, True, session)
         result = await forum_svc.vote_reply(reply, user.user_id, False, session)
@@ -225,7 +264,9 @@ class TestGetOrmHelpers:
     async def test_get_thread_orm_hit(self, forum_svc, session: AsyncSession):
         user = await make_user(session, username="ormthread")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
 
         found = await forum_svc.get_thread_orm(thread.thread_id, session)
         assert found is not None
@@ -235,7 +276,9 @@ class TestGetOrmHelpers:
         found = await forum_svc.get_thread_orm(uuid4(), session)
         assert found is None
 
-    async def test_get_thread_orm_returns_deleted_thread(self, forum_svc, session: AsyncSession):
+    async def test_get_thread_orm_returns_deleted_thread(
+        self, forum_svc, session: AsyncSession
+    ):
         """ORM helper does NOT filter deleted — the route layer is responsible."""
         user = await make_user(session, username="deletedorm")
         topic = await make_topic(session)
@@ -250,8 +293,12 @@ class TestGetOrmHelpers:
     async def test_get_reply_orm_hit(self, forum_svc, session: AsyncSession):
         user = await make_user(session, username="ormreply")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
-        reply = await make_reply_orm(session, thread_id=thread.thread_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
+        reply = await make_reply_orm(
+            session, thread_id=thread.thread_id, author_id=user.user_id
+        )
 
         found = await forum_svc.get_reply_orm(reply.reply_id, session)
         assert found is not None
@@ -271,7 +318,9 @@ class TestCreateHelpers:
         topic = await make_topic(session)
         payload = ThreadCreate(title=TEST_TITLE, body=TEST_BODY)
 
-        result = await forum_svc.create_thread(topic.topic_id, user.user_id, payload, session)
+        result = await forum_svc.create_thread(
+            topic.topic_id, user.user_id, payload, session
+        )
 
         assert result is not None
         assert result.title == TEST_TITLE
@@ -280,23 +329,35 @@ class TestCreateHelpers:
     async def test_create_reply_round_trip(self, forum_svc, session: AsyncSession):
         user = await make_user(session, username="createreply")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
         payload = ReplyCreate(body=TEST_REPLY_BODY, parent_reply_id=None)
 
-        result = await forum_svc.create_reply(thread.thread_id, user.user_id, payload, session)
+        result = await forum_svc.create_reply(
+            thread.thread_id, user.user_id, payload, session
+        )
 
         assert result is not None
         assert result.body == TEST_REPLY_BODY
         assert result.author_username == user.username
 
-    async def test_create_nested_reply_sets_parent(self, forum_svc, session: AsyncSession):
+    async def test_create_nested_reply_sets_parent(
+        self, forum_svc, session: AsyncSession
+    ):
         user = await make_user(session, username="nestedreply")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
-        parent = await make_reply_orm(session, thread_id=thread.thread_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
+        parent = await make_reply_orm(
+            session, thread_id=thread.thread_id, author_id=user.user_id
+        )
         payload = ReplyCreate(body=TEST_REPLY_BODY, parent_reply_id=parent.reply_id)
 
-        result = await forum_svc.create_reply(thread.thread_id, user.user_id, payload, session)
+        result = await forum_svc.create_reply(
+            thread.thread_id, user.user_id, payload, session
+        )
 
         assert result.parent_reply_id == parent.reply_id
 
@@ -305,21 +366,31 @@ class TestCreateHelpers:
 
 
 class TestSoftDeletes:
-    async def test_delete_thread_sets_is_deleted(self, forum_svc, session: AsyncSession):
+    async def test_delete_thread_sets_is_deleted(
+        self, forum_svc, session: AsyncSession
+    ):
         user = await make_user(session, username="softdelthread")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
 
         await forum_svc.delete_thread(thread, session)
 
         await session.refresh(thread)
         assert thread.is_deleted is True
 
-    async def test_delete_reply_sets_is_deleted(self, forum_svc, session: AsyncSession):
+    async def test_delete_reply_sets_is_deleted(
+        self, forum_svc, session: AsyncSession
+    ):
         user = await make_user(session, username="softdelreply")
         topic = await make_topic(session)
-        thread = await make_thread_orm(session, topic_id=topic.topic_id, author_id=user.user_id)
-        reply = await make_reply_orm(session, thread_id=thread.thread_id, author_id=user.user_id)
+        thread = await make_thread_orm(
+            session, topic_id=topic.topic_id, author_id=user.user_id
+        )
+        reply = await make_reply_orm(
+            session, thread_id=thread.thread_id, author_id=user.user_id
+        )
 
         await forum_svc.delete_reply(reply, session)
 

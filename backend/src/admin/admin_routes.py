@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from src.auth.csrf import require_csrf
 from src.auth.dependencies import require_admin
 from src.db.enums import MemberRoleEnum
 from src.db.main import get_session
@@ -49,6 +50,7 @@ async def update_user_role(
     session: SessionDependency,
     token_details: dict = require_admin,
     role: MemberRoleEnum = Body(..., embed=True),
+    _csrf: None = require_csrf,
 ):
     if not await admin_service.is_verified_user(username, session):
         raise NotFoundError("User does not exist")
@@ -63,6 +65,7 @@ async def approve_pending_user(
     username: str,
     session: SessionDependency,
     token_details: dict = require_admin,
+    _csrf: None = require_csrf,
 ):
     if await admin_service.is_verified_user(username, session):
         raise AlreadyVerifiedError("User is already verified")
@@ -83,6 +86,7 @@ async def reject_pending_user(
     username: str,
     session: SessionDependency,
     token_details: dict = require_admin,
+    _csrf: None = require_csrf,
 ):
     if await admin_service.is_verified_user(username, session):
         raise AlreadyVerifiedError("User is already verified")

@@ -33,16 +33,16 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
-from src.config import Config
-from src.auth.utils import decode_token, seconds_until_expiry
 from src.auth.service import auth_service as _auth_service
-from src.db.redis_client import (
-    token_in_blocklist,
-    get_refresh_token_owner,
-    delete_refresh_token,
-    add_jti_to_blocklist,
-)
+from src.auth.utils import decode_token, seconds_until_expiry
+from src.config import Config
 from src.db.main import get_session_context
+from src.db.redis_client import (
+    add_jti_to_blocklist,
+    delete_refresh_token,
+    get_refresh_token_owner,
+    token_in_blocklist,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,6 @@ AUTH_BYPASS_PATHS = {
     "/auth/signup",
     "/auth/refresh_token",
 }
-
 
 
 class TokenRefreshMiddleware(BaseHTTPMiddleware):
@@ -133,9 +132,7 @@ class TokenRefreshMiddleware(BaseHTTPMiddleware):
             await add_jti_to_blocklist(jti, max(refresh_ttl, 1))
 
             # Issue a new pair
-            new_access_token, new_refresh_token = await _auth_service.generate_tokens(
-                user
-            )
+            new_access_token, new_refresh_token = await _auth_service.generate_tokens(user)
 
             # Inject the new token data into request state so CookieTokenBearer
             # reads the fresh token rather than the expired cookie
@@ -151,14 +148,14 @@ class TokenRefreshMiddleware(BaseHTTPMiddleware):
                 value=new_access_token,
                 httponly=True,
                 secure=Config.cookie_secure,
-                samesite="lax",
+                samesite=Config.cookie_samesite,
             )
             response.set_cookie(
                 key="refresh_token",
                 value=new_refresh_token,
                 httponly=True,
                 secure=Config.cookie_secure,
-                samesite="lax",
+                samesite=Config.cookie_samesite,
             )
             return response
 

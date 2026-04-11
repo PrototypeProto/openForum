@@ -219,11 +219,7 @@ class TestListThreads:
             is_deleted=False,
         )
         await make_thread(
-            session,
-            topic_id=topic.topic_id,
-            author_id=user.user_id,
-            title=TEST_TITLE_DELETED,
-            is_deleted=True,
+            session, topic_id=topic.topic_id, author_id=user.user_id, title=TEST_TITLE_DELETED, is_deleted=True
         )
 
         r = await client.get(f"/forum/topics/{topic.topic_id}/threads", cookies=cookies)
@@ -242,11 +238,7 @@ class TestListThreads:
             is_pinned=False,
         )
         await make_thread(
-            session,
-            topic_id=topic.topic_id,
-            author_id=user.user_id,
-            title=TEST_TITLE_PINNED,
-            is_pinned=True,
+            session, topic_id=topic.topic_id, author_id=user.user_id, title=TEST_TITLE_PINNED, is_pinned=True
         )
 
         r = await client.get(f"/forum/topics/{topic.topic_id}/threads", cookies=cookies)

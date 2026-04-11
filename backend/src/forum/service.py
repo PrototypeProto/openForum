@@ -274,7 +274,6 @@ class ForumService:
         await session.commit()
 
     #  THREAD VOTES
-    # NOTE: Consider not returning updated vote to avoid extra db access, and let the local frontend use that snapshot of data
     async def vote_thread(
         self, thread: Thread, user_id: UUID, is_upvote: bool, session: AsyncSession
     ) -> VoteResult:

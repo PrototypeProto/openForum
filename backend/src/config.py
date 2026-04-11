@@ -39,7 +39,14 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
 
     # ── CORS ──────────────────────────────────────────────────
+    # Comma-separated list of allowed origins. Multiple values supported:
+    #   ALLOWED_ORIGINS=https://example.com,https://www.example.com
     ALLOWED_ORIGINS: str = "http://localhost:5173"
+
+    # Enumerate the methods and headers the frontend actually uses.
+    # Restricting these reduces preflight attack surface vs allow_methods=["*"].
+    CORS_ALLOW_METHODS: str = "GET,POST,PATCH,DELETE,OPTIONS"
+    CORS_ALLOW_HEADERS: str = "Content-Type,X-CSRF-Token,X-File-Password"
 
     # ── Storage paths ─────────────────────────────────────────
     MEDIA_DIR: str = "shared_media"
@@ -127,6 +134,33 @@ class Settings(BaseSettings):
     def cookie_secure(self) -> bool:
         """Require HTTPS for cookies in production/staging; off elsewhere."""
         return self.is_production
+
+    @property
+    def cookie_samesite(self) -> str:
+        """
+        SameSite policy for auth cookies.
+
+        "strict" in production/staging — once frontend and backend share an
+        origin behind nginx, cross-site requests carrying cookies are fully
+        blocked. "lax" in development/testing so the httpx test client and
+        local Vite dev server can still send cookies.
+        """
+        return "strict" if self.is_production else "lax"
+
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        """ALLOWED_ORIGINS parsed from comma-separated string into a list."""
+        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def cors_allow_methods_list(self) -> list[str]:
+        """CORS_ALLOW_METHODS parsed from comma-separated string into a list."""
+        return [m.strip() for m in self.CORS_ALLOW_METHODS.split(",") if m.strip()]
+
+    @property
+    def cors_allow_headers_list(self) -> list[str]:
+        """CORS_ALLOW_HEADERS parsed from comma-separated string into a list."""
+        return [h.strip() for h in self.CORS_ALLOW_HEADERS.split(",") if h.strip()]
 
     @property
     def log_level(self) -> int:
