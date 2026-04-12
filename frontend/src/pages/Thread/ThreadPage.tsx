@@ -4,6 +4,7 @@ import ReplyCard from "../../components/forum/ReplyCard";
 import ReplyBox from "../../components/forum/ReplyBox";
 import { useThreadPage } from "../../hooks/useThreadPage";
 import { useAuthContext } from "../../context/AuthContext";
+import { Role } from "../../types/userTypes";
 import type { ReplyRead } from "../../types/forumTypes";
 import "./ThreadPage.css";
 
@@ -30,7 +31,8 @@ function PageNav({
 
   const range: (number | "...")[] = [];
   const add = new Set<number>();
-  for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) add.add(i);
+  for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++)
+    add.add(i);
   add.add(pages);
 
   let prev: number | null = null;
@@ -49,7 +51,9 @@ function PageNav({
       )}
       {range.map((item, i) =>
         item === "..." ? (
-          <span key={`ellipsis-${i}`} className="page-ellipsis">…</span>
+          <span key={`ellipsis-${i}`} className="page-ellipsis">
+            …
+          </span>
         ) : (
           <button
             key={item}
@@ -74,6 +78,9 @@ export default function ThreadPage() {
   const navigate = useNavigate();
   const { authData } = useAuthContext();
 
+  const isAdmin = authData?.role === Role.ADMIN;
+  const isAuthor = (authorId: string) => authData?.user_id === authorId;
+
   const {
     thread,
     replies,
@@ -92,6 +99,17 @@ export default function ThreadPage() {
     setEditBody,
     startEdit,
     cancelEdit,
+    editingThread,
+    threadEditTitle,
+    threadEditBody,
+    setThreadEditTitle,
+    setThreadEditBody,
+    startEditThread,
+    cancelEditThread,
+    submitThreadEdit,
+    submitThreadDelete,
+    submitThreadPin,
+    submitThreadLock,
     goToPage,
     submitReply,
     submitEdit,
@@ -124,6 +142,12 @@ export default function ThreadPage() {
     );
   }
 
+  // Navigate away if thread was just deleted
+  if (thread.is_deleted) {
+    navigate(-1);
+    return null;
+  }
+
   function resolveParent(reply: ReplyRead): ReplyRead | null {
     if (!reply.parent_reply_id) return null;
     const onPage = replies.find((r) => r.reply_id === reply.parent_reply_id);
@@ -132,11 +156,14 @@ export default function ThreadPage() {
   }
 
   function scrollToReplyBox() {
-    document.getElementById("reply-box")?.scrollIntoView({ behavior: "smooth" });
+    document
+      .getElementById("reply-box")
+      ?.scrollIntoView({ behavior: "smooth" });
   }
 
-  // Synthetic OP card — assembled from thread data so the body renders
-  // as the first reply card on page 1 without a separate backend slot.
+  const canEditThread = isAuthor(thread.author_id) || isAdmin;
+
+  // Synthetic OP card for the thread body
   const opCard: ReplyRead = {
     reply_id: thread.thread_id,
     thread_id: thread.thread_id,
@@ -158,40 +185,122 @@ export default function ThreadPage() {
     <>
       <Navbar />
       <div className="thread-page">
-
         {/* Breadcrumb */}
         <div className="thread-breadcrumb">
-          <button className="thread-back-btn" onClick={() => navigate(-1)}>← Back</button>
+          <button className="thread-back-btn" onClick={() => navigate(-1)}>
+            ← Back
+          </button>
         </div>
 
         {/* Thread header */}
         <div className="thread-header">
-          <div className="thread-header-title-row">
-            {thread.is_pinned && <span className="thread-pin-badge">📌 pinned</span>}
-            {thread.is_locked && <span className="thread-locked-badge">🔒 locked</span>}
-            <h1 className="thread-title">{thread.title}</h1>
-          </div>
-          <div className="thread-header-meta">
-            <span>Posted by <strong>{thread.author_username}</strong></span>
-            <span className="thread-header-dot">·</span>
-            <span>{formatDate(thread.created_at)}</span>
-            <span className="thread-header-dot">·</span>
-            <span>{thread.reply_count} {thread.reply_count === 1 ? "reply" : "replies"}</span>
-          </div>
+          {editingThread ? (
+            <div className="thread-edit-form">
+              <input
+                className="thread-edit-title-input"
+                value={threadEditTitle}
+                onChange={(e) => setThreadEditTitle(e.target.value)}
+                placeholder="Thread title"
+              />
+              <textarea
+                className="thread-edit-body-textarea"
+                value={threadEditBody}
+                onChange={(e) => setThreadEditBody(e.target.value)}
+                rows={8}
+              />
+              <div className="thread-edit-actions">
+                <button
+                  className="reply-btn reply-btn--primary"
+                  onClick={submitThreadEdit}
+                >
+                  Save
+                </button>
+                <button
+                  className="reply-btn reply-btn--ghost"
+                  onClick={cancelEditThread}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="thread-header-title-row">
+                {thread.is_pinned && (
+                  <span className="thread-pin-badge">📌 pinned</span>
+                )}
+                {thread.is_locked && (
+                  <span className="thread-locked-badge">🔒 locked</span>
+                )}
+                <h1 className="thread-title">{thread.title}</h1>
+              </div>
+              <div className="thread-header-meta">
+                <span>
+                  Posted by <strong>{thread.author_username}</strong>
+                </span>
+                <span className="thread-header-dot">·</span>
+                <span>{formatDate(thread.created_at)}</span>
+                <span className="thread-header-dot">·</span>
+                <span>
+                  {thread.reply_count}{" "}
+                  {thread.reply_count === 1 ? "reply" : "replies"}
+                </span>
+              </div>
+
+              {/* Thread-level mod controls */}
+              {canEditThread && (
+                <div className="thread-mod-actions">
+                  <button
+                    className="reply-btn reply-btn--ghost"
+                    onClick={startEditThread}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="reply-btn reply-btn--danger"
+                    onClick={async () => {
+                      if (confirm("Delete this thread?"))
+                        await submitThreadDelete();
+                    }}
+                  >
+                    Delete
+                  </button>
+                  {isAdmin && (
+                    <>
+                      <button
+                        className="reply-btn reply-btn--ghost"
+                        onClick={() => submitThreadPin(!thread.is_pinned)}
+                      >
+                        {thread.is_pinned ? "Unpin" : "Pin"}
+                      </button>
+                      <button
+                        className="reply-btn reply-btn--ghost"
+                        onClick={() => submitThreadLock(!thread.is_locked)}
+                      >
+                        {thread.is_locked ? "Unlock" : "Lock"}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
+
+        {submitError && <p className="thread-submit-error">{submitError}</p>}
 
         {/* Reply list */}
         {repliesLoading ? (
           <p className="thread-loading">Loading replies…</p>
         ) : (
           <div className="thread-reply-list">
-
-            {/* OP body — only on page 1 */}
+            {/* OP body — only on page 1, shown as a ReplyCard */}
             {page === 1 && (
               <ReplyCard
                 reply={opCard}
                 isOP={true}
                 currentUserId={authData?.user_id ?? null}
+                isAdmin={isAdmin}
                 parentReply={null}
                 editingReplyId={editingReplyId}
                 editBody={editBody}
@@ -199,20 +308,23 @@ export default function ThreadPage() {
                 onStartEdit={startEdit}
                 onCancelEdit={cancelEdit}
                 onSubmitEdit={submitEdit}
-                onReplyTo={(r) => { setReplyingTo(r); scrollToReplyBox(); }}
-                onDelete={() => {}}
+                onReplyTo={(r) => {
+                  setReplyingTo(r);
+                  scrollToReplyBox();
+                }}
+                onDelete={() => {}} // Thread delete is handled by the header controls
                 onVote={(_id, isUpvote) => submitThreadVote(isUpvote)}
                 userVote={threadVote}
               />
             )}
 
-            {/* Paginated replies — user_vote comes directly from the server */}
             {replies.map((reply) => (
               <ReplyCard
                 key={reply.reply_id}
                 reply={reply}
                 isOP={reply.author_id === thread.author_id}
                 currentUserId={authData?.user_id ?? null}
+                isAdmin={isAdmin}
                 parentReply={resolveParent(reply)}
                 editingReplyId={editingReplyId}
                 editBody={editBody}
@@ -220,20 +332,21 @@ export default function ThreadPage() {
                 onStartEdit={startEdit}
                 onCancelEdit={cancelEdit}
                 onSubmitEdit={submitEdit}
-                onReplyTo={(r) => { setReplyingTo(r); scrollToReplyBox(); }}
+                onReplyTo={(r) => {
+                  setReplyingTo(r);
+                  scrollToReplyBox();
+                }}
                 onDelete={submitDelete}
                 onVote={submitReplyVote}
                 userVote={reply.user_vote}
               />
             ))}
-
           </div>
         )}
 
         {/* Pagination + reply box */}
         <div className="thread-footer">
           <PageNav page={page} pages={pages} goToPage={goToPage} />
-
           <div id="reply-box">
             <ReplyBox
               body={replyBody}
@@ -246,7 +359,6 @@ export default function ThreadPage() {
             />
           </div>
         </div>
-
       </div>
     </>
   );

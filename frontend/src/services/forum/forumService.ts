@@ -12,6 +12,7 @@ import type {
   PaginatedThreads,
   ThreadRead,
   ThreadCreatePayload,
+  ThreadUpdatePayload,
   ReplyRead,
   PaginatedReplies,
   ReplyCreatePayload,
@@ -51,6 +52,19 @@ export async function createThread(
   payload: ThreadCreatePayload,
 ): Promise<APIResponse<ThreadRead>> {
   return postJSON<ThreadRead>(API.forum.createThread(topicId), payload);
+}
+
+export async function updateThread(
+  threadId: string,
+  payload: ThreadUpdatePayload,
+): Promise<APIResponse<ThreadRead>> {
+  return patchJSON<ThreadRead>(API.forum.updateThread(threadId), payload);
+}
+
+export async function deleteThread(
+  threadId: string,
+): Promise<APIResponse<null>> {
+  return deleteReq(API.forum.deleteThread(threadId));
 }
 
 export async function getReplies(

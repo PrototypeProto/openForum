@@ -1,6 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getTopics, getThreads } from "../services/forum/forumService";
-import type { Topic, ThreadListItem, PaginatedThreads } from "../types/forumTypes";
+import type {
+  Topic,
+  ThreadListItem,
+  PaginatedThreads,
+} from "../types/forumTypes";
 
 interface UseTopicThreadsResult {
   topic: Topic | null;
@@ -22,8 +26,12 @@ export function useTopicThreads(topicName: string): UseTopicThreadsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const _topicFetched = useRef(false);
+
   // Resolve topic_id from the topic name on mount
   useEffect(() => {
+    if (_topicFetched.current) return;
+    _topicFetched.current = true;
     async function resolveTopic() {
       const res = await getTopics();
       if (!res.ok || !res.data) {
@@ -32,7 +40,8 @@ export function useTopicThreads(topicName: string): UseTopicThreadsResult {
         return;
       }
       const match = res.data.find(
-        (t) => t.name.toLowerCase().replace(/\s+/g, "-") === topicName.toLowerCase(),
+        (t) =>
+          t.name.toLowerCase().replace(/\s+/g, "-") === topicName.toLowerCase(),
       );
       if (!match) {
         setError("Topic not found");
@@ -66,5 +75,14 @@ export function useTopicThreads(topicName: string): UseTopicThreadsResult {
     fetchThreads();
   }, [topic, page]);
 
-  return { topic, threads, page, pages, total, loading, error, goToPage: setPage };
+  return {
+    topic,
+    threads,
+    page,
+    pages,
+    total,
+    loading,
+    error,
+    goToPage: setPage,
+  };
 }

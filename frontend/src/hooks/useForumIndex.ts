@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getTopicGroups, getTopics } from "../services/forum/forumService";
 import type { TopicGroup, Topic } from "../types/forumTypes";
 
@@ -18,19 +18,25 @@ export function useForumIndex(): UseForumIndexResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const _fetched = useRef(false);
+
   useEffect(() => {
+    if (_fetched.current) return;
+    _fetched.current = true;
     async function fetch() {
       setLoading(true);
       setError(null);
 
-      const groupsRes = await getTopicGroups();
+      const [groupsRes, topicsRes] = await Promise.all([
+        getTopicGroups(),
+        getTopics(),
+      ]);
+
       if (!groupsRes.ok || !groupsRes.data) {
         setError(groupsRes.error ?? "Failed to load forum");
         setLoading(false);
         return;
       }
-
-      const topicsRes = await getTopics();
       if (!topicsRes.ok || !topicsRes.data) {
         setError(topicsRes.error ?? "Failed to load topics");
         setLoading(false);

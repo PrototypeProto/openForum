@@ -2,22 +2,23 @@ import type { ReplyRead } from "../../types/forumTypes";
 import "./ReplyCard.css";
 
 interface ReplyCardProps {
-  reply: ReplyRead
-  isOP: boolean
-  currentUserId: string | null
-  parentReply: ReplyRead | null
-  editingReplyId: string | null
-  editBody: string
-  onSetEditBody: (v: string) => void
-  onStartEdit: (r: ReplyRead) => void
-  onCancelEdit: () => void
-  onSubmitEdit: (replyId: string) => void
-  onReplyTo: (r: ReplyRead) => void
-  onDelete: (replyId: string) => void
-  onVote: (replyId: string, isUpvote: boolean) => void
+  reply: ReplyRead;
+  isOP: boolean;
+  currentUserId: string | null;
+  isAdmin: boolean;
+  parentReply: ReplyRead | null;
+  editingReplyId: string | null;
+  editBody: string;
+  onSetEditBody: (v: string) => void;
+  onStartEdit: (r: ReplyRead) => void;
+  onCancelEdit: () => void;
+  onSubmitEdit: (replyId: string) => void;
+  onReplyTo: (r: ReplyRead) => void;
+  onDelete: (replyId: string) => void;
+  onVote: (replyId: string, isUpvote: boolean) => void;
   // The current user's vote on this specific reply.
   // true = upvoted, false = downvoted, null = no vote.
-  userVote: boolean | null
+  userVote: boolean | null;
 }
 
 function formatDate(iso: string): string {
@@ -34,6 +35,7 @@ export default function ReplyCard({
   reply,
   isOP,
   currentUserId,
+  isAdmin,
   parentReply,
   editingReplyId,
   editBody,
@@ -48,11 +50,15 @@ export default function ReplyCard({
 }: ReplyCardProps) {
   const isEditing = editingReplyId === reply.reply_id;
   const isOwn = currentUserId === reply.author_id;
-  const showParentBanner = reply.parent_reply_id !== null && parentReply !== null;
+  const canEdit = isOwn;
+  const canDelete = isOwn || isAdmin;
+  const showParentBanner =
+    reply.parent_reply_id !== null && parentReply !== null;
 
   return (
-    <div className={`reply-card${isOP ? " reply-card--op" : ""}${reply.is_deleted ? " reply-card--deleted" : ""}`}>
-
+    <div
+      className={`reply-card${isOP ? " reply-card--op" : ""}${reply.is_deleted ? " reply-card--deleted" : ""}`}
+    >
       {/* Section 1: commenter */}
       <div className="reply-card-author">
         <div className="reply-avatar-placeholder" />
@@ -62,12 +68,13 @@ export default function ReplyCard({
 
       {/* Section 2: content */}
       <div className="reply-card-content">
-
         {/* Top row: created_at left, reply number right */}
         <div className="reply-card-meta">
           <span className="reply-created-at">
             {formatDate(reply.created_at)}
-            {reply.updated_at && <span className="reply-edited-flag"> (edited)</span>}
+            {reply.updated_at && (
+              <span className="reply-edited-flag"> (edited)</span>
+            )}
           </span>
           <span className="reply-number">#{reply.reply_number}</span>
         </div>
@@ -75,11 +82,14 @@ export default function ReplyCard({
         {/* Parent banner */}
         {showParentBanner && !reply.is_deleted && (
           <div className="reply-parent-banner">
-            <span className="reply-parent-label">↩ replying to {parentReply!.author_username}</span>
+            <span className="reply-parent-label">
+              ↩ replying to {parentReply!.author_username}
+            </span>
             <p className="reply-parent-body">
               {parentReply!.is_deleted
                 ? "[deleted]"
-                : parentReply!.body.slice(0, 120) + (parentReply!.body.length > 120 ? "…" : "")}
+                : parentReply!.body.slice(0, 120) +
+                  (parentReply!.body.length > 120 ? "…" : "")}
             </p>
           </div>
         )}
@@ -94,17 +104,27 @@ export default function ReplyCard({
               rows={4}
             />
             <div className="reply-edit-actions">
-              <button className="reply-btn reply-btn--primary" onClick={() => onSubmitEdit(reply.reply_id)}>
+              <button
+                className="reply-btn reply-btn--primary"
+                onClick={() => onSubmitEdit(reply.reply_id)}
+              >
                 Save
               </button>
-              <button className="reply-btn reply-btn--ghost" onClick={onCancelEdit}>
+              <button
+                className="reply-btn reply-btn--ghost"
+                onClick={onCancelEdit}
+              >
                 Cancel
               </button>
             </div>
           </div>
         ) : (
           <p className="reply-body">
-            {reply.is_deleted ? <em className="reply-deleted-text">[deleted]</em> : reply.body}
+            {reply.is_deleted ? (
+              <em className="reply-deleted-text">[deleted]</em>
+            ) : (
+              reply.body
+            )}
           </p>
         )}
 
@@ -116,26 +136,41 @@ export default function ReplyCard({
                 className={`reply-vote-btn${userVote === true ? " reply-vote-btn--up-active" : ""}`}
                 aria-label="upvote"
                 onClick={() => onVote(reply.reply_id, true)}
-              >▲</button>
-              <span className="reply-vote-count">{reply.upvote_count - reply.downvote_count}</span>
+              >
+                ▲
+              </button>
+              <span className="reply-vote-count">
+                {reply.upvote_count - reply.downvote_count}
+              </span>
               <button
                 className={`reply-vote-btn${userVote === false ? " reply-vote-btn--down-active" : ""}`}
                 aria-label="downvote"
                 onClick={() => onVote(reply.reply_id, false)}
-              >▼</button>
+              >
+                ▼
+              </button>
             </div>
             <div className="reply-card-action-right">
-              {isOwn && (
-                <>
-                  <button className="reply-btn reply-btn--ghost" onClick={() => onStartEdit(reply)}>
-                    Edit
-                  </button>
-                  <button className="reply-btn reply-btn--danger" onClick={() => onDelete(reply.reply_id)}>
-                    Delete
-                  </button>
-                </>
+              {canEdit && (
+                <button
+                  className="reply-btn reply-btn--ghost"
+                  onClick={() => onStartEdit(reply)}
+                >
+                  Edit
+                </button>
               )}
-              <button className="reply-btn reply-btn--ghost" onClick={() => onReplyTo(reply)}>
+              {canDelete && (
+                <button
+                  className="reply-btn reply-btn--danger"
+                  onClick={() => onDelete(reply.reply_id)}
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                className="reply-btn reply-btn--ghost"
+                onClick={() => onReplyTo(reply)}
+              >
                 Reply
               </button>
             </div>

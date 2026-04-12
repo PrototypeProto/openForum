@@ -94,6 +94,13 @@ export interface ThreadCreatePayload {
   body: string;
 }
 
+export interface ThreadUpdatePayload {
+  title?: string;
+  body?: string;
+  is_pinned?: boolean;
+  is_locked?: boolean;
+}
+
 export interface ReplyCreatePayload {
   body: string;
   parent_reply_id: string | null;

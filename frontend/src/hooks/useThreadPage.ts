@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getThread,
   getReplies,
@@ -6,6 +6,8 @@ import {
   createReply,
   updateReply,
   deleteReply,
+  updateThread,
+  deleteThread,
   voteThread,
   voteReply,
 } from "../services/forum/forumService";
@@ -34,6 +36,18 @@ interface UseThreadPageResult {
   setEditBody: (v: string) => void;
   startEdit: (reply: ReplyRead) => void;
   cancelEdit: () => void;
+  // Thread-level editing
+  editingThread: boolean;
+  threadEditTitle: string;
+  threadEditBody: string;
+  setThreadEditTitle: (v: string) => void;
+  setThreadEditBody: (v: string) => void;
+  startEditThread: () => void;
+  cancelEditThread: () => void;
+  submitThreadEdit: () => Promise<void>;
+  submitThreadDelete: () => Promise<void>;
+  submitThreadPin: (pinned: boolean) => Promise<void>;
+  submitThreadLock: (locked: boolean) => Promise<void>;
   goToPage: (p: number) => void;
   submitReply: () => Promise<void>;
   submitEdit: (replyId: string) => Promise<void>;
@@ -63,11 +77,21 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
 
+  // Thread-level edit state
+  const [editingThread, setEditingThread] = useState(false);
+  const [threadEditTitle, setThreadEditTitle] = useState("");
+  const [threadEditBody, setThreadEditBody] = useState("");
+
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [threadVote, setThreadVote] = useState<boolean | null>(null);
 
-  // Fetch thread once on mount
+  const _threadFetched = useRef<string | null>(null);
   useEffect(() => {
+    // Guard against StrictMode double-invoke. Use the threadId as the ref value
+    // so switching to a different thread (same component, new threadId) still
+    // triggers a fresh fetch.
+    if (_threadFetched.current === threadId) return;
+    _threadFetched.current = threadId;
     async function fetchThread() {
       setLoading(true);
       setError(null);
@@ -97,7 +121,6 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
       setPages(data.pages);
       setTotal(data.total);
 
-      // Fetch any parents not present on this page
       const pageReplyIds = new Set(data.items.map((r) => r.reply_id));
       const toFetch = data.items.filter(
         (r) =>
@@ -138,6 +161,72 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     setEditBody("");
   }, []);
 
+  // Thread edit actions
+  const startEditThread = useCallback(() => {
+    if (!thread) return;
+    setThreadEditTitle(thread.title);
+    setThreadEditBody(thread.body);
+    setEditingThread(true);
+  }, [thread]);
+
+  const cancelEditThread = useCallback(() => {
+    setEditingThread(false);
+    setThreadEditTitle("");
+    setThreadEditBody("");
+  }, []);
+
+  const submitThreadEdit = useCallback(async () => {
+    if (!thread || !threadEditTitle.trim() || !threadEditBody.trim()) return;
+    setSubmitError(null);
+    const res = await updateThread(threadId, {
+      title: threadEditTitle.trim(),
+      body: threadEditBody.trim(),
+    });
+    if (!res.ok || !res.data) {
+      setSubmitError(res.error ?? "Failed to update thread");
+      return;
+    }
+    setThread(res.data);
+    cancelEditThread();
+  }, [thread, threadId, threadEditTitle, threadEditBody, cancelEditThread]);
+
+  const submitThreadDelete = useCallback(async () => {
+    setSubmitError(null);
+    const res = await deleteThread(threadId);
+    if (!res.ok) {
+      setSubmitError(res.error ?? "Failed to delete thread");
+      return;
+    }
+    // Mark locally as deleted — navigate away is handled by the page
+    setThread((prev) => (prev ? { ...prev, is_deleted: true } : prev));
+  }, [threadId]);
+
+  const submitThreadPin = useCallback(
+    async (pinned: boolean) => {
+      setSubmitError(null);
+      const res = await updateThread(threadId, { is_pinned: pinned });
+      if (!res.ok || !res.data) {
+        setSubmitError(res.error ?? "Failed to update thread");
+        return;
+      }
+      setThread(res.data);
+    },
+    [threadId],
+  );
+
+  const submitThreadLock = useCallback(
+    async (locked: boolean) => {
+      setSubmitError(null);
+      const res = await updateThread(threadId, { is_locked: locked });
+      if (!res.ok || !res.data) {
+        setSubmitError(res.error ?? "Failed to update thread");
+        return;
+      }
+      setThread(res.data);
+    },
+    [threadId],
+  );
+
   const submitReply = useCallback(async () => {
     if (!replyBody.trim()) return;
     setSubmitError(null);
@@ -156,12 +245,6 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
 
     const newTotal = total + 1;
     const newLastPage = Math.ceil(newTotal / PAGE_SIZE);
-
-    // Optimistic append: if we're already on the last page and it wasn't
-    // full (< PAGE_SIZE replies), we already have the new reply from the
-    // API response — just splice it in and update the total.
-    // This avoids a round-trip re-fetch for the common case of replying
-    // at the bottom of an active thread.
     const onLastPage = newLastPage === page;
     const pageWasntFull = replies.length < PAGE_SIZE;
 
@@ -169,11 +252,8 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
       setReplies((prev) => [...prev, res.data!]);
       setTotal(newTotal);
     } else if (onLastPage) {
-      // Page was full — the new reply is technically on this page number
-      // but we need a fresh fetch to get the correct slice.
       await fetchReplies(page);
     } else {
-      // Reply landed on a new last page — navigate there.
       setPage(newLastPage);
     }
   }, [
@@ -182,7 +262,6 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     threadId,
     total,
     page,
-    pages,
     replies.length,
     fetchReplies,
   ]);
@@ -251,8 +330,6 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     async (replyId: string, isUpvote: boolean) => {
       const res = await voteReply(replyId, { is_upvote: isUpvote });
       if (!res.ok || !res.data) return;
-      // Update counts and user_vote in place directly on the reply object —
-      // no separate replyVotes map needed since user_vote is now part of ReplyRead.
       setReplies((prev) =>
         prev.map((r) =>
           r.reply_id === replyId
@@ -288,6 +365,17 @@ export function useThreadPage(threadId: string): UseThreadPageResult {
     setEditBody,
     startEdit,
     cancelEdit,
+    editingThread,
+    threadEditTitle,
+    threadEditBody,
+    setThreadEditTitle,
+    setThreadEditBody,
+    startEditThread,
+    cancelEditThread,
+    submitThreadEdit,
+    submitThreadDelete,
+    submitThreadPin,
+    submitThreadLock,
     goToPage: setPage,
     submitReply,
     submitEdit,

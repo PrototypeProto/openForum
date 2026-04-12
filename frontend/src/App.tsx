@@ -14,7 +14,9 @@ import FileSharePage from "./pages/FileShare/FileSharePage";
 import DownloadPage from "./pages/FileShare/DownloadPage";
 import AboutPage from "./pages/About/AboutPage";
 import AccountVerificationPage from "./pages/LoginSignup/AccountVerificationPage";
+import AdminDashboard from "./components/admin/AdminDashboard";
 import { GuestRoute } from "./guards/GuestRoute";
+import { AdminRoute } from "./guards/AdminRoute";
 import { ProtectedRoute } from "./guards/ProtectedRoute";
 
 export default function App() {
@@ -39,7 +41,14 @@ export default function App() {
         }
       />
 
-      {/* <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} /> */}
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        }
+      />
 
       <Route path="/error" element={<ErrorPage />} />
       <Route path="/logged-out" element={<LogoutPage />} />

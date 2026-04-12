@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getMediaList } from "../services/media/mediaService";
 
 export function useMedia() {
@@ -24,7 +24,11 @@ export function useMedia() {
     setLoading(false);
   };
 
+  const _initialFetch = useRef(false);
   useEffect(() => {
+    if (page === 1 && !_initialFetch.current) {
+      _initialFetch.current = true;
+    }
     fetchPage(page);
   }, [page]);
 

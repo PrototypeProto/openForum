@@ -92,11 +92,9 @@ export const API = {
     // GET  /tempfs/files/{fileId}
     info: (fileId: string) => `${TEMPFS_URL}/files/${fileId}`,
     // GET  /tempfs/files/{fileId}/content?want_compressed=false
-    // Password is sent via X-File-Password header, not in the URL
-    download: (
-      fileId: string,
-      wantCompressed: boolean = false,
-    ) => {
+    // Password is sent as X-File-Password header, NOT a query param —
+    // query params leak into server logs, browser history, and Referer headers.
+    download: (fileId: string, wantCompressed: boolean = false) => {
       const params = new URLSearchParams({
         want_compressed: String(wantCompressed),
       });

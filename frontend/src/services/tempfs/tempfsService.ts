@@ -1,4 +1,4 @@
-import { deleteReq, getJSON } from "../../utils/fetchHelper";
+import { deleteReq, getJSON, postFormData } from "../../utils/fetchHelper";
 import { API } from "../endpoints/api";
 import type { APIResponse } from "../../types/authType";
 import type {
@@ -8,25 +8,27 @@ import type {
 } from "../../types/tempfsTypes";
 
 export interface UploadOptions {
-  file: File
-  downloadPermission: "public" | "self" | "password"
-  password: string | null
-  lifetimeSeconds: number
-  compress: boolean
+  file: File;
+  downloadPermission: "public" | "self" | "password";
+  password: string | null;
+  lifetimeSeconds: number;
+  compress: boolean;
 }
 
 export interface TempFilePublicInfo {
-  file_id: string
-  original_filename: string
-  original_size: number
-  stored_size: number
-  is_compressed: boolean
-  download_permission: string
-  expires_at: string
-  requires_password: boolean
+  file_id: string;
+  original_filename: string;
+  original_size: number;
+  stored_size: number;
+  is_compressed: boolean;
+  download_permission: string;
+  expires_at: string;
+  requires_password: boolean;
 }
 
-export async function getFileInfo(fileId: string): Promise<APIResponse<TempFilePublicInfo>> {
+export async function getFileInfo(
+  fileId: string,
+): Promise<APIResponse<TempFilePublicInfo>> {
   return getJSON<TempFilePublicInfo>(API.tempfs.info(fileId));
 }
 
@@ -40,12 +42,9 @@ export async function uploadFile(
   form.append("compress", String(opts.compress));
   if (opts.password) form.append("password", opts.password);
 
-  const res = await fetch(API.tempfs.upload, {
-    method: "POST",
-    credentials: "include",
-    body: form,
-    // No Content-Type header — browser sets multipart boundary automatically
-  });
+  // postFormData injects X-CSRF-Token and omits Content-Type so the
+  // browser can set the multipart boundary correctly.
+  const res = await postFormData(API.tempfs.upload, form);
 
   const data = await res.json().catch(() => ({}));
   return {
@@ -62,7 +61,9 @@ export async function listMyFiles(): Promise<APIResponse<TempFileRead[]>> {
   return getJSON<TempFileRead[]>(API.tempfs.files);
 }
 
-export async function getStorageStatus(): Promise<APIResponse<StorageStatusRead>> {
+export async function getStorageStatus(): Promise<
+  APIResponse<StorageStatusRead>
+> {
   return getJSON<StorageStatusRead>(API.tempfs.storage);
 }
 
@@ -71,10 +72,9 @@ export async function deleteFile(fileId: string): Promise<APIResponse<null>> {
 }
 
 /**
- * Initiates a file download.
- * Password-protected files send the password via the X-File-Password header
- * (never in the URL) so it doesn't leak into logs or browser history.
- * Returns an error string if the server responds with non-200.
+ * Download a file. Password (if required) is sent as X-File-Password header,
+ * never as a query parameter — query params leak into server logs and browser
+ * history, defeating the purpose of password protection.
  */
 export async function downloadFile(
   fileId: string,
@@ -83,30 +83,30 @@ export async function downloadFile(
 ): Promise<string | null> {
   const url = API.tempfs.download(fileId, wantCompressed);
 
-  const headers: HeadersInit = {};
-  if (password) {
-    headers["X-File-Password"] = password;
-  }
+  const headers: Record<string, string> = {};
+  if (password) headers["X-File-Password"] = password;
 
-  const res = await fetch(url, { credentials: "include", headers });
+  const res = await fetch(url, {
+    credentials: "include",
+    headers,
+  });
+
   if (!res.ok) {
     return res.status === 404 ? "File not found or expired" : "Download failed";
   }
 
-  // Parse filename from Content-Disposition, preferring the RFC 5987 filename* form
+  // Extract filename from Content-Disposition header per RFC 6266.
+  // Prefer filename*=UTF-8''<percent-encoded> (set by the backend for
+  // non-ASCII names) over the ASCII-only filename="..." fallback.
   const disposition = res.headers.get("Content-Disposition") ?? "";
-  let filename = "download";
-  const utf8Match = disposition.match(/filename\*=UTF-8''([^\s;]+)/i);
-  if (utf8Match) {
-    try {
-      filename = decodeURIComponent(utf8Match[1]);
-    } catch {
-      filename = utf8Match[1];
-    }
-  } else {
-    const asciiMatch = disposition.match(/filename="([^"]+)"/);
-    if (asciiMatch) filename = asciiMatch[1];
-  }
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  const asciiMatch = disposition.match(/filename="([^"]+)"/);
+  const rawFilename = utf8Match
+    ? decodeURIComponent(utf8Match[1])
+    : asciiMatch
+      ? asciiMatch[1]
+      : "download";
+  const filename = rawFilename || "download";
 
   const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   listMyFiles,
   getStorageStatus,
@@ -6,21 +6,25 @@ import {
   deleteFile,
   type UploadOptions,
 } from "../services/tempfs/tempfsService";
-import type { TempFileRead, StorageStatusRead, TempFileUploadResponse } from "../types/tempfsTypes";
+import type {
+  TempFileRead,
+  StorageStatusRead,
+  TempFileUploadResponse,
+} from "../types/tempfsTypes";
 
 interface UseTempFSResult {
-  files: TempFileRead[]
-  storage: StorageStatusRead | null
-  loading: boolean
-  error: string | null
+  files: TempFileRead[];
+  storage: StorageStatusRead | null;
+  loading: boolean;
+  error: string | null;
   // upload form state
-  uploading: boolean
-  uploadError: string | null
-  lastUpload: TempFileUploadResponse | null
-  upload: (opts: UploadOptions) => Promise<void>
+  uploading: boolean;
+  uploadError: string | null;
+  lastUpload: TempFileUploadResponse | null;
+  upload: (opts: UploadOptions) => Promise<void>;
   // delete
-  remove: (fileId: string) => Promise<void>
-  removeError: string | null
+  remove: (fileId: string) => Promise<void>;
+  removeError: string | null;
 }
 
 export function useTempFS(): UseTempFSResult {
@@ -30,10 +34,16 @@ export function useTempFS(): UseTempFSResult {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [lastUpload, setLastUpload] = useState<TempFileUploadResponse | null>(null);
+  const [lastUpload, setLastUpload] = useState<TempFileUploadResponse | null>(
+    null,
+  );
   const [removeError, setRemoveError] = useState<string | null>(null);
 
+  const _fetched = useRef(false);
+
   useEffect(() => {
+    if (_fetched.current) return;
+    _fetched.current = true;
     async function load() {
       setLoading(true);
       const [filesRes, storageRes] = await Promise.all([
