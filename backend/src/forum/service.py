@@ -2,6 +2,7 @@ from datetime import datetime
 from math import ceil
 from uuid import UUID
 
+import nh3
 from sqlalchemy.orm import aliased
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -22,6 +23,63 @@ from src.db.schemas import (
     TopicRead,
     VoteResult,
 )
+
+# ---------------------------------------------------------------------------
+# HTML / XSS sanitisation
+# ---------------------------------------------------------------------------
+
+#: Tags that are safe to keep in forum bodies.
+#: Everything else is stripped (text content preserved, tags removed).
+_ALLOWED_TAGS: frozenset[str] = frozenset(
+    {
+        "b",
+        "i",
+        "u",
+        "s",
+        "strong",
+        "em",  # inline formatting
+        "code",
+        "pre",  # code blocks
+        "a",  # links (href sanitised by nh3)
+        "p",
+        "br",  # paragraphs
+        "ul",
+        "ol",
+        "li",  # lists
+        "blockquote",  # quotes
+        "h1",
+        "h2",
+        "h3",  # headings
+    }
+)
+
+#: Attributes allowed per tag. nh3 strips all others.
+_ALLOWED_ATTRS: dict[str, set[str]] = {
+    "a": {"href", "title"},
+}
+
+
+def _sanitise_body(raw: str | None) -> str:
+    """
+    Strip disallowed HTML tags and attributes from forum content.
+
+    Uses nh3 (Rust-backed, successor to bleach) when available.
+    Falls back to stripping ALL tags with nh3.clean("", ...) style if somehow
+    the allowlist is misconfigured, or returns the raw string if nh3 is not
+    installed (shouldn't happen in a properly set-up environment — nh3 is in
+    requirements.txt).
+
+    Called on create and update before any DB write so XSS payloads never
+    reach the database.
+    """
+    if not raw:
+        return raw or ""
+    return nh3.clean(
+        raw,
+        tags=_ALLOWED_TAGS,
+        attributes=_ALLOWED_ATTRS,
+        link_rel=None,  # don't force rel="noopener" — let frontend control this
+    )
 
 
 class ForumService:
@@ -248,10 +306,12 @@ class ForumService:
     async def create_thread(
         self, topic_id: UUID, author_id: UUID, payload: ThreadCreate, session: AsyncSession
     ) -> ThreadRead:
+        data = payload.model_dump()
+        data["body"] = _sanitise_body(data.get("body"))
         thread = Thread(
             topic_id=topic_id,
             author_id=author_id,
-            **payload.model_dump(),
+            **data,
         )
         session.add(thread)
         await session.commit()
@@ -263,6 +323,8 @@ class ForumService:
         self, thread: Thread, user_id: UUID, payload: ThreadUpdate, session: AsyncSession
     ) -> ThreadRead:
         for field, value in payload.model_dump(exclude_unset=True).items():
+            if field == "body" and value is not None:
+                value = _sanitise_body(value)
             setattr(thread, field, value)
         thread.updated_at = datetime.utcnow()
         await session.commit()
@@ -509,7 +571,9 @@ class ForumService:
         payload: ReplyCreate,
         session: AsyncSession,
     ) -> ReplyRead:
-        reply = Reply(thread_id=thread_id, author_id=author_id, **payload.model_dump())
+        rdata = payload.model_dump()
+        rdata["body"] = _sanitise_body(rdata.get("body"))
+        reply = Reply(thread_id=thread_id, author_id=author_id, **rdata)
         session.add(reply)
         await session.commit()
         await session.refresh(reply)
@@ -536,7 +600,7 @@ class ForumService:
     async def update_reply(
         self, reply: Reply, payload: ReplyUpdate, session: AsyncSession
     ) -> ReplyRead | None:
-        reply.body = payload.body
+        reply.body = _sanitise_body(payload.body)
         reply.updated_at = datetime.utcnow()
         await session.commit()
         # await session.refresh(reply)

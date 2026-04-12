@@ -129,11 +129,19 @@ def set_csrf_cookie(response, token: str) -> None:
 def delete_csrf_cookie(response) -> None:
     """
     Clear the csrf_token cookie on logout.
-    Deletes both the __Host- prefixed and plain variants so a user switching
-    between production and development doesn't get a stale cookie stuck.
+
+    Passes the same path/secure/samesite attributes used in set_csrf_cookie
+    so browsers (especially Safari) match and actually delete the cookie.
+    Deletes both name variants so a user switching environments doesn't get
+    a stale cookie stuck.
     """
-    response.delete_cookie(_CSRF_COOKIE_NAME_HOST)
-    response.delete_cookie(_CSRF_COOKIE_NAME_PLAIN)
+    for name in (_CSRF_COOKIE_NAME_HOST, _CSRF_COOKIE_NAME_PLAIN):
+        response.delete_cookie(
+            key=name,
+            path="/",
+            secure=Config.cookie_secure,
+            samesite=Config.cookie_samesite,
+        )
 
 
 # ---------------------------------------------------------------------------

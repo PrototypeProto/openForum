@@ -74,9 +74,19 @@ async def login_user(
     response: Response,
     _rl: None = rate_limit("auth:login", limit=10, window=60),
 ):
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
-    response.delete_cookie("csrf_token")
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        secure=Config.cookie_secure,
+        samesite=Config.cookie_samesite,
+    )
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        secure=Config.cookie_secure,
+        samesite=Config.cookie_samesite,
+    )
+    delete_csrf_cookie(response)
 
     user = await auth_service.get_user_with_username(login_data.username, session)
     if user is None or not verify_passwd(login_data.password, user.password_hash):
@@ -137,9 +147,19 @@ async def rotate_refresh_token(
 
     if owner is None:
         await revoke_all_user_refresh_tokens(username)
-        response.delete_cookie("access_token")
-        response.delete_cookie("refresh_token")
-        response.delete_cookie("csrf_token")
+        response.delete_cookie(
+            key="access_token",
+            path="/",
+            secure=Config.cookie_secure,
+            samesite=Config.cookie_samesite,
+        )
+        response.delete_cookie(
+            key="refresh_token",
+            path="/",
+            secure=Config.cookie_secure,
+            samesite=Config.cookie_samesite,
+        )
+        delete_csrf_cookie(response)
         raise RefreshTokenReuseError(
             "Refresh token reuse detected. All sessions revoked. Please log in again."
         )
@@ -209,8 +229,18 @@ async def revoke_token(
     except Exception:
         logger.warning("Redis revocation failed during logout for %s", username)
 
-    response.delete_cookie("access_token")
-    response.delete_cookie("refresh_token")
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        secure=Config.cookie_secure,
+        samesite=Config.cookie_samesite,
+    )
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        secure=Config.cookie_secure,
+        samesite=Config.cookie_samesite,
+    )
     delete_csrf_cookie(response)
 
     return {"message": "Logged out successfully"}
